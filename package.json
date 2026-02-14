@@ -1,0 +1,50 @@
+{
+  "name": "comfyui-approval-dashboard-v2",
+  "version": "2.0.0",
+  "description": "Real-time image approval dashboard for ComfyUI",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev:server": "node --watch server/index.js",
+    "build:client": "vite build client",
+    "build": "npm run build:client",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "dev:client": "vite serve client",
+    "preview": "vite preview client"
+  },
+  "keywords": [
+    "comfyui",
+    "dashboard",
+    "approval",
+    "feedback",
+    "approval-workflow"
+  ],
+  "author": "Clawdia",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4",
+    "socket.io-client": "^4.5.4",
+    "chokidar": "^3.5.3",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-virtuoso": "^4.6.0",
+    "vite": "^5.0.7",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vitest": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
+    "@playwright/test": "^1.40.1",
+    "shadcn-ui": "^0.1.1"
+  }
+}

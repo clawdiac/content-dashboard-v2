@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "attachments",
+  "baseTheme": "dark",
+  "baseFontSize": 16,
+  "promptDelete": true,
+  "showLineNumber": true,
+  "translucency": false
+}

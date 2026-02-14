@@ -1,0 +1,119 @@
+{
+  "main": {
+    "id": "e8fc3bf8bf6d4fb4",
+    "type": "split",
+    "children": [
+      {
+        "id": "46ee8078b67b0c0f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "00eaa85f9ba0b2ef",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Quick-Start.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "a1f8beb4fb5a3df9",
+    "type": "split",
+    "children": [
+      {
+        "id": "80c1d8cf5ccf8ac7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "file-explorer",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "search",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "starred",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "bcef9bdbf1d5bd9a",
+    "type": "split",
+    "children": [
+      {
+        "id": "backlinkPanel",
+        "type": "leaf",
+        "state": {
+          "type": "backlink",
+          "state": {
+            "file": "Quick-Start.md",
+            "collapseAll": false,
+            "extraContext": false,
+            "sortOrder": "alphabetical",
+            "showSearch": false,
+            "searchQuery": "",
+            "backlinkCollapsed": false,
+            "unlinkedCollapsed": true
+          }
+        }
+      },
+      {
+        "id": "outlinePanel",
+        "type": "leaf",
+        "state": {
+          "type": "outline",
+          "state": {
+            "file": "Quick-Start.md"
+          }
+        }
+      }
+    ],
+    "direction": "vertical",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {}
+  },
+  "active": "00eaa85f9ba0b2ef",
+  "lastOpenFiles": [
+    "Quick-Start.md",
+    "MEMORY.md"
+  ]
+}

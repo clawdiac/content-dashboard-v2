@@ -1,0 +1,27 @@
+{
+  "name": "comfyui-skill",
+  "version": "1.0.0",
+  "description": "ComfyUI OpenClaw skill for AI content generation with Telegram approval workflow",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "comfyui",
+    "openclaw",
+    "ai-generation",
+    "image-generation",
+    "video-generation",
+    "telegram"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

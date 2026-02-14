@@ -1,0 +1,24 @@
+{
+  "name": "@openclaw/x-reader",
+  "version": "1.0.0",
+  "description": "Read and parse X (Twitter) posts via Nitter without API keys",
+  "main": "index.js",
+  "bin": {
+    "x-reader": "index.js"
+  },
+  "scripts": {
+    "test": "node index.js https://x.com/oliverhenry/status/2022011925903667547"
+  },
+  "keywords": [
+    "twitter",
+    "x",
+    "nitter",
+    "scraper",
+    "parsing"
+  ],
+  "author": "Clawdia",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "sd3-medium.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "2": {
+    "inputs": {
+      "text": "{{PROMPT}}",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode (Positive)",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive)"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "blurry, low quality, static, nsfw",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode (Negative)",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative)"
+    }
+  },
+  "4": {
+    "inputs": {
+      "width": 1024,
+      "height": 576,
+      "length": 24,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentVideo",
+    "_meta": {
+      "title": "Empty Latent Video"
+    }
+  },
+  "5": {
+    "inputs": {
+      "seed": {{SEED}},
+      "steps": {{STEPS}},
+      "cfg": {{CFG_SCALE}},
+      "sampler_name": "dpmpp_2m_karras",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "KSamplerVideo",
+    "_meta": {
+      "title": "KSampler (Video)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "7": {
+    "inputs": {
+      "codec": "h264",
+      "quality": 95,
+      "fps": 24,
+      "minimize_blocking": false,
+      "format": "video/h264-mp4"
+    },
+    "class_type": "VideoEncoder",
+    "_meta": {
+      "title": "Video Encoder"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "ComfyUI_video",
+      "format": "video/h264-mp4",
+      "fps": 24,
+      "images": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  }
+}
