@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String
+  role          String    @default("va")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  contentItems  ContentItem[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Batch {
+  id               String        @id @default(cuid())
+  name             String?
+  type             String        // "image" | "video"
+  status           String        @default("pending") // pending|processing|completed|failed
+  totalItems       Int           @default(0)
+  completed        Int           @default(0)
+  failed           Int           @default(0)
+  campaignName     String?
+  templatePresetId String?
+  rerunnable       Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  items            ContentItem[]
+
+  @@index([campaignName])
+}
+
+model ContentItem {
+  id             String           @id @default(cuid())
+  title          String
+  prompt         String
+  negativePrompt String?
+  generator      String           @default("nano_banana_pro")
+  generationParams Json?
+  status         String           @default("generating")
+  imageUrl       String?
+  editedUrl      String?
+  assignedToId   String?
+  assignedTo     User?            @relation(fields: [assignedToId], references: [id])
+  batchId        String?
+  batch          Batch?           @relation(fields: [batchId], references: [id])
+  type           String           @default("image") // "image" | "video"
+  presetId       String?
+  preset         CharacterPreset? @relation(fields: [presetId], references: [id])
+  characterId    String?
+  character      Character?       @relation(fields: [characterId], references: [id])
+  parentImageId  String?          // video items link back to approved image
+  videoPresetId  String?
+  videoPreset    VideoPreset?     @relation(fields: [videoPresetId], references: [id])
+  videoUrl       String?          // URL to generated video file
+  position       Int?             // order within batch
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Character {
+  id           String            @id @default(cuid())
+  name         String
+  description  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  presets      CharacterPreset[]
+  videoPresets VideoPreset[]
+  contentItems ContentItem[]
+}
+
+model CharacterPreset {
+  id               String        @id @default(cuid())
+  name             String
+  imageUrl         String
+  characterId      String
+  character        Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt        DateTime      @default(now())
+  generationParams Json?
+  contentItems     ContentItem[]
+}
+
+model ReferenceImage {
+  id        String   @id @default(cuid())
+  name      String
+  imageUrl  String
+  category  String?
+  createdAt DateTime @default(now())
+}
+
+model VideoPreset {
+  id               String        @id @default(cuid())
+  name             String
+  description      String?
+  referenceImageUrl String?
+  characterId      String
+  character        Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  promptTemplate   String
+  duration         Int           @default(5)
+  model            String        @default("seedance")
+  aspectRatio      String        @default("9:16")
+  resolution       String        @default("720p")
+  params           Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  contentItems     ContentItem[]
+}
