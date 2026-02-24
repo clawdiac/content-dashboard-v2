@@ -22,8 +22,10 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
     // Convert relative paths to absolute URLs for server-side fetch
     let fetchUrl = url
     if (url.startsWith('/')) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+      // HARDCODED FIX: Use localhost:3000 directly for reference image fetching
+      const baseUrl = 'http://localhost:3000'
       fetchUrl = `${baseUrl}${url}`
+      console.log('[Generation] Using localhost:3000 to fetch reference image')
     }
     console.log('[Generation] Fetching reference image from:', fetchUrl)
     const response = await fetch(fetchUrl)

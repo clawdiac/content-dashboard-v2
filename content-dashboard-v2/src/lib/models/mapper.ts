@@ -23,8 +23,9 @@ export function mapNanoBananaProRequest(
         },
       })
     }
-    const plural = refImages.length > 1 ? 'people in these images' : 'person in this image'
-    parts.push({ text: `Reference the ${plural}. ${prompt}` })
+    // Generic reference instruction - don't assume content type
+    const refText = refImages.length > 1 ? 'these reference images' : 'this reference image'
+    parts.push({ text: `Use this for style/composition reference: ${refText}. Generate: ${prompt}` })
   } else {
     parts.push({ text: prompt })
   }

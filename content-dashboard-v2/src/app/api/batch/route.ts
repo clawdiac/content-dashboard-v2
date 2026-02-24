@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:4000'
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
     // Create content items for each entry
     const contentItems = await Promise.all(

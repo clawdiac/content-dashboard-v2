@@ -74,7 +74,8 @@ export async function POST(request: Request) {
     }
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:4000'
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+console.log('[API /api/content] Computing baseUrl: NEXTAUTH_URL=', process.env.NEXTAUTH_URL, 'fallback=http://localhost:3000, final baseUrl=', baseUrl)
 
   // Resolve preset image URL to absolute
   if (resolvedPresetImageUrl && !resolvedPresetImageUrl.startsWith('http') && !resolvedPresetImageUrl.startsWith('data:')) {

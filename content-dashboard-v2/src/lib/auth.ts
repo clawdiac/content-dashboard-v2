@@ -1,5 +1,4 @@
 import { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
@@ -24,7 +23,8 @@ declare module "next-auth/jwt" {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // NOTE: No adapter — CredentialsProvider is incompatible with PrismaAdapter.
+  // JWT strategy stores sessions in signed cookies, no DB session needed.
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -45,12 +45,14 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+        console.log("[AUTH] Password valid for", credentials.email, ":", isPasswordValid);
 
         if (!isPasswordValid) {
           return null
         }
 
+        console.log("[AUTH] authorize() returning user:", user.email);
         return {
           id: user.id,
           email: user.email,
@@ -65,6 +67,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      console.log("[AUTH JWT] jwt callback - user:", user ? user.email : "null", "token:", token.sub);
       if (user) {
         token.role = (user as any).role
         token.id = user.id
