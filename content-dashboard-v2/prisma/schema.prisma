@@ -115,6 +115,7 @@ model Character {
   contentItems    ContentItem[]
   batchPreviews   BatchWorkflowPreview[]
   batchQueueItems BatchWorkflowQueueItem[]
+  batchWorkflowsAsPreview BatchWorkflow[] @relation("BWPreviewCharacter")
 }
 
 model CharacterPreset {
@@ -152,6 +153,7 @@ model VideoPreset {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   contentItems     ContentItem[]
+  batchWorkflows   BatchWorkflow[]
 }
 
 // ============ Batch Video Generation Workflow ============
@@ -159,7 +161,7 @@ model VideoPreset {
 model BatchWorkflow {
   id             String   @id @default(cuid())
   name           String?
-  status         String   @default("setup") // setup|previewing|confirmed|generating|completed|failed|cancelled
+  status         String   @default("setup") // setup|previewing|confirming|generating|completed|failed|cancelled
   workflowType   String   // "seed_lock" | "prompt_lock"
   provider       String   // "kling" | "seedance" | "veo"
   basePrompt     String   // The master prompt template
@@ -170,6 +172,11 @@ model BatchWorkflow {
   completedItems Int      @default(0)
   failedItems    Int      @default(0)
   lockedSeed     Int?     // For seed-lock workflows: the chosen seed
+  lockedPrompt   String?  // For prompt-lock workflows: the confirmed prompt
+  videoPresetId  String?
+  videoPreset    VideoPreset? @relation(fields: [videoPresetId], references: [id])
+  previewCharacterId String?
+  previewCharacter   Character? @relation("BWPreviewCharacter", fields: [previewCharacterId], references: [id])
   params         Json?    // Additional generation params
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

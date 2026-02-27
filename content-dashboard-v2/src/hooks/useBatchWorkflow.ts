@@ -48,6 +48,18 @@ export interface BatchWorkflowQueueItem {
   character?: { id: string; name: string } | null
 }
 
+export interface VideoPresetOption {
+  id: string
+  name: string
+  description?: string | null
+  promptTemplate: string
+  duration: number
+  aspectRatio: string
+  resolution: string
+  model: string
+  characterCount?: number
+}
+
 export interface BatchWorkflow {
   id: string
   name?: string | null
@@ -62,28 +74,26 @@ export interface BatchWorkflow {
   completedItems?: number | null
   failedItems?: number | null
   lockedSeed?: number | null
+  lockedPrompt?: string | null
+  videoPresetId?: string | null
+  videoPreset?: { id: string; name: string } | null
+  previewCharacter?: { id: string; name: string } | null
   params?: Record<string, unknown> | null
   createdAt?: string
   updatedAt?: string
   previews?: BatchWorkflowPreview[]
   queueItems?: BatchWorkflowQueueItem[]
+  queuedCharacters?: { id: string; name: string }[]
 }
 
 interface CreateWorkflowInput {
-  name?: string
-  workflowType: BatchWorkflowType
+  presetId: string
   provider: BatchWorkflowProvider
-  basePrompt: string
-  aspectRatio?: string
-  duration?: number
-  resolution?: string
-  params?: Record<string, unknown>
 }
 
 interface ConfirmWorkflowInput {
-  workflowId?: string
-  selectedPreviewId?: string
-  characterIds?: string[]
+  approvedPreviewId?: string
+  confirmedPrompt?: string
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -130,9 +140,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
       const targetId = id || workflowId
       if (!targetId) return null
 
-      if (!options?.silent) {
-        setIsLoading(true)
-      }
+      if (!options?.silent) setIsLoading(true)
       setError(null)
 
       try {
@@ -147,9 +155,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
         setError(err instanceof Error ? err.message : 'Failed to load workflow')
         return null
       } finally {
-        if (!options?.silent) {
-          setIsLoading(false)
-        }
+        if (!options?.silent) setIsLoading(false)
       }
     },
     [workflowId]
@@ -167,7 +173,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
       setWorkflow(data)
       setWorkflowId(data.id)
       setPreviews([])
-      setQueueItems([])
+      setQueueItems(data.queueItems ?? [])
       setStatus('setup')
       setSelectedPreviewId(null)
       return data
@@ -188,12 +194,13 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     setStatus('previewing')
 
     try {
-      const data = await fetchJson<BatchWorkflowPreview[]>(`/api/batch-workflow/${targetId}/preview`, {
-        method: 'POST',
-      })
-      setPreviews(data)
-      setWorkflow((prev) => (prev ? { ...prev, status: 'previewing' } : prev))
-      return data
+      const data = await fetchJson<{ previews: BatchWorkflowPreview[]; previewCharacter: { id: string; name: string } }>(
+        `/api/batch-workflow/${targetId}/preview`,
+        { method: 'POST' }
+      )
+      setPreviews(data.previews)
+      setWorkflow((prev) => prev ? { ...prev, status: 'previewing', previewCharacter: data.previewCharacter } : prev)
+      return data.previews
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate previews')
       return null
@@ -206,36 +213,18 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     setSelectedPreviewId(previewId)
   }, [])
 
-  const fetchAllCharacterIds = useCallback(async () => {
-    const data = await fetchJson<BatchWorkflowCharacter[]>('/api/characters')
-    const ids = data.map((c) => c.id)
-    if (ids.length === 0) {
-      throw new Error('No characters available')
-    }
-    return ids
-  }, [])
-
   const confirmWorkflow = useCallback(
-    async ({ workflowId: inputId, selectedPreviewId: inputPreviewId, characterIds }: ConfirmWorkflowInput) => {
-      const targetId = inputId || workflowId
-      if (!targetId) return null
+    async (input: ConfirmWorkflowInput) => {
+      if (!workflowId) return null
 
       setIsLoading(true)
       setError(null)
-      setStatus('confirming')
 
       try {
-        const resolvedCharacterIds = characterIds && characterIds.length > 0
-          ? characterIds
-          : await fetchAllCharacterIds()
-
-        const data = await fetchJson<BatchWorkflow>(`/api/batch-workflow/${targetId}/confirm`, {
+        const data = await fetchJson<BatchWorkflow>(`/api/batch-workflow/${workflowId}/confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            selectedPreviewId: inputPreviewId ?? selectedPreviewId ?? undefined,
-            characterIds: resolvedCharacterIds,
-          }),
+          body: JSON.stringify(input),
         })
         setWorkflow(data)
         setQueueItems(data.queueItems ?? [])
@@ -249,7 +238,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
         setIsLoading(false)
       }
     },
-    [workflowId, selectedPreviewId, fetchAllCharacterIds]
+    [workflowId]
   )
 
   const pollStatus = useCallback(
@@ -257,7 +246,6 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
       const targetId = id || workflowId
       if (!targetId) return null
 
-      setError(null)
       try {
         const data = await fetchJson<{
           id: string
@@ -273,45 +261,26 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
           }>
         }>(`/api/batch-workflow/${targetId}/status`)
 
-        setWorkflow((prev) => prev
-          ? {
-            ...prev,
-            status: data.status,
-            totalItems: data.totalItems,
-            completedItems: data.completedItems,
-            failedItems: data.failedItems,
-          }
-          : prev
+        setWorkflow((prev) =>
+          prev
+            ? { ...prev, status: data.status, totalItems: data.totalItems, completedItems: data.completedItems, failedItems: data.failedItems }
+            : prev
         )
         setStatus(toStatus(data.status))
 
         let shouldRefresh = false
-
         setQueueItems((prev) => {
           const prevMap = new Map(prev.map((item) => [item.id, item]))
-          const next = data.queueItems.map((item) => {
+          return data.queueItems.map((item) => {
             const existing = prevMap.get(item.id)
-            if (item.status === 'completed' && !existing?.videoUrl) {
-              shouldRefresh = true
-            }
-            return {
-              ...existing,
-              id: item.id,
-              status: item.status,
-              position: item.position,
-              character: item.character ?? existing?.character ?? null,
-            } as BatchWorkflowQueueItem
+            if (item.status === 'completed' && !existing?.videoUrl) shouldRefresh = true
+            return { ...existing, id: item.id, status: item.status, position: item.position, character: item.character ?? existing?.character ?? null } as BatchWorkflowQueueItem
           })
-          return next
         })
 
-        if (shouldRefresh) {
-          await fetchWorkflow(targetId, { silent: true })
-        }
-
+        if (shouldRefresh) await fetchWorkflow(targetId, { silent: true })
         return data
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch workflow status')
+      } catch {
         return null
       }
     },
@@ -347,37 +316,11 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
 
   useEffect(() => {
     clearPolling()
-
     if (status !== 'generating' || !workflowId) return
-
     pollStatus(workflowId)
-    pollingRef.current = setInterval(() => {
-      pollStatus(workflowId)
-    }, 3000)
-
-    return () => {
-      clearPolling()
-    }
+    pollingRef.current = setInterval(() => pollStatus(workflowId), 3000)
+    return () => clearPolling()
   }, [status, workflowId, pollStatus, clearPolling])
-
-  const actions = useMemo(() => ({
-    createWorkflow,
-    fetchWorkflow,
-    generatePreviews,
-    selectPreview,
-    confirmWorkflow,
-    pollStatus,
-    cancelWorkflow,
-    setWorkflowId,
-  }), [
-    createWorkflow,
-    fetchWorkflow,
-    generatePreviews,
-    selectPreview,
-    confirmWorkflow,
-    pollStatus,
-    cancelWorkflow,
-  ])
 
   return {
     workflow,
@@ -387,6 +330,13 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     error,
     isLoading,
     selectedPreviewId,
-    ...actions,
+    createWorkflow,
+    fetchWorkflow,
+    generatePreviews,
+    selectPreview,
+    confirmWorkflow,
+    pollStatus,
+    cancelWorkflow,
+    setWorkflowId,
   }
 }

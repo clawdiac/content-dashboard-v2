@@ -13,6 +13,7 @@ export default function BatchWorkflowPage() {
 
   const handleWorkflowCreated = (wf: BatchWorkflow) => {
     setWorkflow(wf)
+    // After creation, characters are queued. Go straight to preview/workflow step.
     setStep('workflow')
   }
 
@@ -32,7 +33,7 @@ export default function BatchWorkflowPage() {
         <div>
           <h1 className="text-lg font-semibold">Batch Video Generation</h1>
           <p className="text-sm text-muted-foreground">
-            Generate videos for multiple characters with locked seeds or prompts.
+            Select a preset, preview with the first character, then generate for all.
           </p>
         </div>
         {step !== 'setup' && (

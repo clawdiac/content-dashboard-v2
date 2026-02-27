@@ -1,22 +1,21 @@
 'use client'
 
-import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
-import { useBatchWorkflow, type BatchWorkflowQueueItem } from '@/hooks/useBatchWorkflow'
+import { useBatchWorkflow } from '@/hooks/useBatchWorkflow'
 
 interface BatchProgressProps {
   workflowId: string
 }
 
 const statusStyles: Record<string, { label: string; className: string }> = {
-  pending: { label: 'Pending', className: 'bg-muted text-muted-foreground' },
-  generating: { label: 'Generating', className: 'bg-yellow-500/10 text-yellow-500' },
-  completed: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-500' },
+  pending: { label: 'Queued', className: 'bg-muted text-muted-foreground' },
+  generating: { label: 'Generating', className: 'bg-yellow-500/10 text-yellow-500 animate-pulse' },
+  completed: { label: 'Done', className: 'bg-emerald-500/10 text-emerald-500' },
   failed: { label: 'Failed', className: 'bg-red-500/10 text-red-500' },
   cancelled: { label: 'Cancelled', className: 'bg-muted text-muted-foreground' },
 }
@@ -29,16 +28,28 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
   const failed = workflow?.failedItems ?? 0
   const pending = total - completed - failed
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0
-
   const isFinished = status === 'completed' || status === 'failed' || status === 'cancelled'
+
+  // Find currently generating item
+  const currentItem = queueItems.find((item) => item.status === 'generating')
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">
-            {workflow?.name || 'Batch Progress'}
-          </CardTitle>
+          <div>
+            <CardTitle className="text-base">{workflow?.name || 'Batch Progress'}</CardTitle>
+            {workflow?.lockedSeed && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Locked seed: <span className="font-mono font-medium">{workflow.lockedSeed}</span>
+              </p>
+            )}
+            {workflow?.lockedPrompt && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                Locked prompt: {workflow.lockedPrompt}
+              </p>
+            )}
+          </div>
           <Badge
             variant="outline"
             className={cn(
@@ -54,14 +65,21 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {/* Progress bar */}
         <div className="grid gap-2">
           <div className="flex items-center justify-between text-sm">
-            <span>{completed} / {total} completed</span>
+            <span className="font-medium">{completed} / {total} generated</span>
             <span className="text-muted-foreground">{progressPct}%</span>
           </div>
           <Progress value={progressPct} className="h-2" />
+          {currentItem && (
+            <p className="text-xs text-muted-foreground">
+              Currently generating: <span className="font-medium text-foreground">{currentItem.character?.name ?? `Character ${currentItem.position + 1}`}</span>
+            </p>
+          )}
         </div>
 
+        {/* Stats */}
         <div className="flex gap-4 text-xs">
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -77,15 +95,19 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {/* Character grid */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {queueItems.map((item) => {
             const style = statusStyles[item.status] ?? statusStyles.pending
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="overflow-hidden rounded-lg border"
+                className={cn(
+                  'overflow-hidden rounded-lg border transition-all',
+                  item.status === 'generating' && 'border-yellow-500/50 ring-1 ring-yellow-500/20'
+                )}
               >
                 <div className="relative aspect-video bg-muted/40">
                   {item.videoUrl && item.status === 'completed' ? (
@@ -99,16 +121,21 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                      {item.status === 'generating' ? 'Generating...' :
-                       item.status === 'failed' ? 'Failed' : 'Pending'}
+                      {item.status === 'generating' ? (
+                        <span className="animate-pulse">Generating...</span>
+                      ) : item.status === 'failed' ? (
+                        <span className="text-red-500">Failed</span>
+                      ) : (
+                        'Queued'
+                      )}
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between p-2">
                   <div className="text-xs font-medium truncate">
-                    {item.character?.name ?? `Item ${item.position + 1}`}
+                    {item.character?.name ?? `Character ${item.position + 1}`}
                   </div>
-                  <Badge variant="outline" className={cn('text-[10px] uppercase', style.className)}>
+                  <Badge variant="outline" className={cn('text-[10px] uppercase shrink-0', style.className)}>
                     {style.label}
                   </Badge>
                 </div>
@@ -120,8 +147,9 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
           })}
         </div>
 
+        {/* Completion */}
         {isFinished && status === 'completed' && (
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center text-sm text-emerald-500">
+          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center text-sm text-emerald-500">
             🎉 All done! {completed} videos generated successfully.
           </div>
         )}

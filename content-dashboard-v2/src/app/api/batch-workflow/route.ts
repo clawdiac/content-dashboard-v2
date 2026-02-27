@@ -2,41 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireApiAuth } from '@/lib/api-auth'
 
-const WORKFLOW_TYPES = new Set(['seed_lock', 'prompt_lock'])
 const PROVIDERS = new Set(['kling', 'seedance', 'veo'])
 
-// POST /api/batch-workflow — Create a new batch workflow
+// POST /api/batch-workflow — Create a new batch workflow from a video preset
 export async function POST(request: NextRequest) {
   const { error: authError } = await requireApiAuth()
   if (authError) return authError
 
   try {
     const body = await request.json()
-    const {
-      name,
-      workflowType,
-      provider,
-      basePrompt,
-      aspectRatio,
-      duration,
-      resolution,
-      params,
-    } = body as {
-      name?: string
-      workflowType?: string
+    const { presetId, provider } = body as {
+      presetId?: string
       provider?: string
-      basePrompt?: string
-      aspectRatio?: string
-      duration?: number
-      resolution?: string
-      params?: unknown
     }
 
-    if (!workflowType || !WORKFLOW_TYPES.has(workflowType)) {
-      return NextResponse.json(
-        { error: 'workflowType must be one of: seed_lock, prompt_lock' },
-        { status: 400 }
-      )
+    if (!presetId || typeof presetId !== 'string') {
+      return NextResponse.json({ error: 'presetId is required' }, { status: 400 })
     }
 
     if (!provider || !PROVIDERS.has(provider)) {
@@ -46,29 +27,98 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!basePrompt || typeof basePrompt !== 'string' || !basePrompt.trim()) {
-      return NextResponse.json({ error: 'basePrompt is required' }, { status: 400 })
+    // Look up the selected video preset
+    const videoPreset = await prisma.videoPreset.findUnique({
+      where: { id: presetId },
+      include: { character: true },
+    })
+
+    if (!videoPreset) {
+      return NextResponse.json({ error: 'Video preset not found' }, { status: 404 })
     }
 
-    if (duration !== undefined && (typeof duration !== 'number' || !Number.isFinite(duration))) {
-      return NextResponse.json({ error: 'duration must be a number' }, { status: 400 })
-    }
-
-    const workflow = await prisma.batchWorkflow.create({
-      data: {
-        name: name || null,
-        status: 'setup',
-        workflowType,
-        provider,
-        basePrompt: basePrompt.trim(),
-        aspectRatio: aspectRatio || undefined,
-        duration: duration ?? undefined,
-        resolution: resolution || undefined,
-        params: params ?? undefined,
+    // Find ALL characters that have a VideoPreset with the SAME NAME
+    const matchingPresets = await prisma.videoPreset.findMany({
+      where: { name: videoPreset.name },
+      include: {
+        character: { select: { id: true, name: true, description: true } },
       },
     })
 
-    return NextResponse.json(workflow)
+    // Deduplicate characters (a character might have multiple presets with same name)
+    const characterMap = new Map<string, { id: string; name: string; presetId: string; promptTemplate: string }>()
+    for (const preset of matchingPresets) {
+      if (!characterMap.has(preset.characterId)) {
+        characterMap.set(preset.characterId, {
+          id: preset.characterId,
+          name: preset.character.name,
+          presetId: preset.id,
+          promptTemplate: preset.promptTemplate,
+        })
+      }
+    }
+
+    const queuedCharacters = Array.from(characterMap.values())
+
+    if (queuedCharacters.length === 0) {
+      return NextResponse.json({ error: 'No characters found with this preset' }, { status: 400 })
+    }
+
+    const workflowType = provider === 'kling' ? 'seed_lock' : 'prompt_lock'
+
+    // Create workflow + queue items in transaction
+    const workflow = await prisma.$transaction(async (tx) => {
+      const wf = await tx.batchWorkflow.create({
+        data: {
+          name: `${videoPreset.name} — ${provider}`,
+          status: 'setup',
+          workflowType,
+          provider,
+          basePrompt: videoPreset.promptTemplate,
+          aspectRatio: videoPreset.aspectRatio,
+          duration: videoPreset.duration,
+          resolution: videoPreset.resolution,
+          totalItems: queuedCharacters.length,
+          videoPresetId: videoPreset.id,
+          previewCharacterId: queuedCharacters[0].id,
+          params: videoPreset.params ?? undefined,
+        },
+      })
+
+      // Create queue items for all characters
+      await Promise.all(
+        queuedCharacters.map((char, index) =>
+          tx.batchWorkflowQueueItem.create({
+            data: {
+              workflowId: wf.id,
+              characterId: char.id,
+              prompt: char.promptTemplate,
+              position: index,
+            },
+          })
+        )
+      )
+
+      return wf
+    })
+
+    // Fetch full workflow with queue items
+    const fullWorkflow = await prisma.batchWorkflow.findUnique({
+      where: { id: workflow.id },
+      include: {
+        videoPreset: true,
+        previewCharacter: { select: { id: true, name: true } },
+        queueItems: {
+          orderBy: { position: 'asc' },
+          include: { character: { select: { id: true, name: true } } },
+        },
+      },
+    })
+
+    return NextResponse.json({
+      ...fullWorkflow,
+      queuedCharacters: queuedCharacters.map((c) => ({ id: c.id, name: c.name })),
+    })
   } catch (error) {
     console.error('[API /api/batch-workflow POST] Error:', error)
     return NextResponse.json(
@@ -87,6 +137,7 @@ export async function GET() {
     const workflows = await prisma.batchWorkflow.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
+        videoPreset: { select: { id: true, name: true } },
         _count: {
           select: { previews: true, queueItems: true },
         },
