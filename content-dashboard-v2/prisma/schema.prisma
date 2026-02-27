@@ -105,14 +105,16 @@ model ContentItem {
 }
 
 model Character {
-  id           String            @id @default(cuid())
-  name         String
-  description  String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  presets      CharacterPreset[]
-  videoPresets VideoPreset[]
-  contentItems ContentItem[]
+  id              String                   @id @default(cuid())
+  name            String
+  description     String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  presets         CharacterPreset[]
+  videoPresets    VideoPreset[]
+  contentItems    ContentItem[]
+  batchPreviews   BatchWorkflowPreview[]
+  batchQueueItems BatchWorkflowQueueItem[]
 }
 
 model CharacterPreset {
@@ -150,4 +152,68 @@ model VideoPreset {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   contentItems     ContentItem[]
+}
+
+// ============ Batch Video Generation Workflow ============
+
+model BatchWorkflow {
+  id             String   @id @default(cuid())
+  name           String?
+  status         String   @default("setup") // setup|previewing|confirmed|generating|completed|failed|cancelled
+  workflowType   String   // "seed_lock" | "prompt_lock"
+  provider       String   // "kling" | "seedance" | "veo"
+  basePrompt     String   // The master prompt template
+  aspectRatio    String   @default("9:16")
+  duration       Int      @default(5)
+  resolution     String   @default("720p")
+  totalItems     Int      @default(0)
+  completedItems Int      @default(0)
+  failedItems    Int      @default(0)
+  lockedSeed     Int?     // For seed-lock workflows: the chosen seed
+  params         Json?    // Additional generation params
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  previews   BatchWorkflowPreview[]
+  queueItems BatchWorkflowQueueItem[]
+}
+
+model BatchWorkflowPreview {
+  id           String        @id @default(cuid())
+  workflowId   String
+  workflow     BatchWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  seed         Int?
+  prompt       String
+  characterId  String?
+  character    Character?    @relation(fields: [characterId], references: [id])
+  videoUrl     String?
+  thumbnailUrl String?
+  status       String        @default("pending") // pending|generating|completed|failed
+  selected     Boolean       @default(false) // User selected this preview
+  error        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([workflowId])
+}
+
+model BatchWorkflowQueueItem {
+  id           String        @id @default(cuid())
+  workflowId   String
+  workflow     BatchWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  characterId  String
+  character    Character     @relation(fields: [characterId], references: [id])
+  prompt       String        // Character-specific prompt
+  seed         Int?          // Locked seed for seed-lock workflows
+  videoUrl     String?
+  thumbnailUrl String?
+  status       String        @default("pending") // pending|generating|completed|failed|cancelled
+  error        String?
+  retryCount   Int           @default(0)
+  position     Int           // Order in queue
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([workflowId])
+  @@index([status])
 }
