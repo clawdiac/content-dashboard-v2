@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   Clapperboard,
+  Layers,
   Briefcase,
   Wifi,
   WifiOff,
@@ -26,6 +27,7 @@ const adminNav = [
   { href: "/generate", label: "Generate", icon: Sparkles },
   { href: "/approve", label: "Approve", icon: CheckSquare },
   { href: "/video", label: "Video", icon: Clapperboard },
+  { href: "/batch", label: "Batch", icon: Layers },
   { href: "/queue", label: "Queue", icon: ListOrdered },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
