@@ -5,11 +5,25 @@ import { requireApiAuth } from '@/lib/api-auth'
 import { MODEL_REGISTRY } from '@/lib/models'
 import { validateModelConfig } from '@/lib/models/validator'
 
-export async function GET() {
+export async function GET(request: Request) {
   const { error: authError } = await requireApiAuth()
   if (authError) return authError
 
+  const { searchParams } = new URL(request.url)
+  const status = searchParams.get('status')
+  const characterId = searchParams.get('characterId')
+  const batchId = searchParams.get('batchId')
+  const type = searchParams.get('type')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {}
+  if (status) where.status = status
+  if (characterId) where.characterId = characterId
+  if (batchId) where.batchId = batchId
+  if (type) where.type = type
+
   const items = await prisma.contentItem.findMany({
+    where,
     orderBy: { createdAt: 'desc' },
     include: {
       assignedTo: true,

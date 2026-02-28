@@ -20,6 +20,7 @@ import {
   Briefcase,
   Wifi,
   WifiOff,
+  GalleryHorizontalEnd,
 } from "lucide-react"
 
 const adminNav = [
@@ -29,6 +30,7 @@ const adminNav = [
   { href: "/video", label: "Video", icon: Clapperboard },
   { href: "/batch", label: "Batch", icon: Layers },
   { href: "/queue", label: "Queue", icon: ListOrdered },
+  { href: "/library", label: "Library", icon: GalleryHorizontalEnd },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
