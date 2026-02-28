@@ -88,22 +88,18 @@ export interface VideoGenerationResult {
   error?: string
 }
 
-// Seedance (fal.ai) types
-export interface SeedanceInput {
-  prompt: string
-  duration: string
-  resolution: string
-  enable_safety_checker: boolean
-  generate_audio: boolean
-  aspect_ratio?: string
-  image_url?: string
-  seed?: number
+// Seedance (BytePlus ModelArk) types
+export interface SeedanceTaskRequest {
+  model: string
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image_url'; image_url: { url: string } }
+  >
 }
 
-export interface SeedanceResponse {
-  video?: {
-    url: string
-  }
+export interface SeedanceTaskStatus {
+  status?: 'succeeded' | 'failed' | 'running'
+  content?: Array<{ type?: string; video?: { url?: string } }>
 }
 
 // Kling API types
@@ -142,7 +138,7 @@ export interface KlingPollResponse {
 
 // ============ API Key Management ============
 
-export type ApiKeyType = 'google' | 'fal' | 'kling'
+export type ApiKeyType = 'google' | 'bytedance' | 'kling'
 
 export interface ApiKeyRequest {
   keyType: ApiKeyType

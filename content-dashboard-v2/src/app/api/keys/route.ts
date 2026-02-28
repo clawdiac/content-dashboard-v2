@@ -6,7 +6,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 interface KeyRequest {
-  keyType: 'google' | 'fal' | 'kling_access' | 'kling_secret'
+  keyType: 'google' | 'bytedance' | 'kling_access' | 'kling_secret'
   value: string
 }
 
@@ -17,7 +17,7 @@ const keyOverrides: Map<string, string> = new Map()
 // Key format validators
 const KEY_VALIDATORS: Record<string, (v: string) => boolean> = {
   google: (v) => v.startsWith('AI') && v.length >= 30,
-  fal: (v) => v.length >= 20,
+  bytedance: (v) => v.length >= 20,
   kling_access: (v) => v.length >= 10,
   kling_secret: (v) => v.length >= 10,
 }
@@ -25,7 +25,7 @@ const KEY_VALIDATORS: Record<string, (v: string) => boolean> = {
 // Map key types to env variable names
 const KEY_ENV_MAP: Record<string, string> = {
   google: 'GEMINI_API_KEY',
-  fal: 'FAL_KEY',
+  bytedance: 'BYTEDANCE_API_KEY',
   kling_access: 'KLING_ACCESS_KEY',
   kling_secret: 'KLING_SECRET_KEY',
 }

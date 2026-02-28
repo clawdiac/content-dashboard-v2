@@ -12,9 +12,10 @@ export function mapProviderError(provider: string, statusCode: number, body: str
     if (statusCode === 400 && body.includes('imageSize')) return { code: 'INVALID_PARAM', message: 'Invalid resolution for this aspect ratio. Try 2K.', retryable: false }
   }
 
-  if (provider === 'fal') {
-    if (statusCode === 422) return { code: 'VALIDATION', message: 'Invalid parameters for Seedance.', retryable: false }
-    if (statusCode === 429) return { code: 'RATE_LIMIT', message: 'fal.ai rate limit. Retrying...', retryable: true, retryAfterMs: 5000 }
+  if (provider === 'bytedance') {
+    if (statusCode === 400) return { code: 'VALIDATION', message: 'Invalid parameters for Seedance.', retryable: false }
+    if (statusCode === 401) return { code: 'AUTH', message: 'BytePlus auth failed. Check BYTEDANCE_API_KEY.', retryable: false }
+    if (statusCode === 429) return { code: 'RATE_LIMIT', message: 'BytePlus rate limit. Retrying...', retryable: true, retryAfterMs: 5000 }
   }
 
   if (provider === 'kling') {

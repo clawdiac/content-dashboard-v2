@@ -52,42 +52,36 @@ export function mapNanoBanana2Request(
   return mapNanoBananaProRequest(prompt, config, referenceImageBase64)
 }
 
-// ============ Seedance → fal.ai API ============
+// ============ Seedance → BytePlus ModelArk API ============
 
 export function mapSeedanceRequest(
   prompt: string,
   config: SeedanceConfig,
   referenceImageUrl?: string | null
 ) {
-  const input: Record<string, any> = {
-    prompt,
-    duration: config.duration,
-    resolution: config.resolution,
-    enable_safety_checker: false,
-    generate_audio: true,
-  }
+  const promptParams = [
+    prompt.trim(),
+    `--ratio ${config.aspect_ratio}`,
+    `--resolution ${config.resolution}`,
+    `--duration ${config.duration}`,
+    `--camerafixed ${config.camerafixed}`,
+    `--watermark ${config.watermark}`,
+  ]
 
-  if (config.aspect_ratio) {
-    input.aspect_ratio = config.aspect_ratio
-  }
+  const content: Array<Record<string, any>> = [
+    { type: 'text', text: promptParams.join(' ').trim() },
+  ]
+
   if (referenceImageUrl) {
-    input.image_url = referenceImageUrl
-  }
-  if (config.seed !== null && config.seed !== undefined) {
-    input.seed = config.seed
-  }
-  if (config.watermark !== undefined) {
-    input.watermark = config.watermark
-  }
-  if (config.camerafixed) {
-    input.camerafixed = config.camerafixed
+    content.push({ type: 'image_url', image_url: { url: referenceImageUrl } })
   }
 
-  const modelId = referenceImageUrl
-    ? 'fal-ai/bytedance/seedance/v1.5/pro/image-to-video'
-    : 'fal-ai/bytedance/seedance/v1/pro/text-to-video'
+  const body = {
+    model: 'seedance-1-5-pro-251215',
+    content,
+  }
 
-  return { modelId, input }
+  return { endpoint: '/content_generation/tasks', body }
 }
 
 // ============ Kling → Kling Direct API ============
@@ -152,7 +146,7 @@ export function mapConfigToApiRequest(
     case 'nano_banana_2':
       return { provider: 'gemini' as const, payload: mapNanoBanana2Request(prompt, config, referenceImageBase64) }
     case 'seedance':
-      return { provider: 'fal' as const, payload: mapSeedanceRequest(prompt, config, referenceImageUrl) }
+      return { provider: 'bytedance' as const, payload: mapSeedanceRequest(prompt, config, referenceImageUrl) }
     case 'kling':
       return { provider: 'kling' as const, payload: mapKlingRequest(prompt, config, referenceImageUrl) }
   }

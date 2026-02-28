@@ -17,7 +17,7 @@ interface KeyField {
 
 const keyFields: KeyField[] = [
   { id: "gemini", label: "Gemini API Key", envKey: "GEMINI_API_KEY", placeholder: "AIza..." },
-  { id: "fal", label: "FAL Key (Seedance)", envKey: "FAL_KEY", placeholder: "fal_..." },
+  { id: "bytedance", label: "BytePlus API Key (Seedance)", envKey: "BYTEDANCE_API_KEY", placeholder: "bp_..." },
   { id: "kling-access", label: "Kling Access Key", envKey: "KLING_ACCESS_KEY", placeholder: "ak_..." },
   { id: "kling-secret", label: "Kling Secret Key", envKey: "KLING_SECRET_KEY", placeholder: "sk_..." },
 ]

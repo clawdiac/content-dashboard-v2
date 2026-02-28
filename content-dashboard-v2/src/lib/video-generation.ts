@@ -1,6 +1,4 @@
-// Video generation service — Seedance (fal.ai) + Kling AI (direct API with JWT)
-
-import { fal } from '@fal-ai/client'
+// Video generation service — Seedance (BytePlus ModelArk) + Kling AI (direct API with JWT)
 import jwt from 'jsonwebtoken'
 
 import type { SeedanceConfig, KlingConfig } from './models/types'
@@ -19,23 +17,47 @@ export interface VideoGenerationResult {
   error?: string
 }
 
-// ============ Seedance via fal.ai ============
+// ============ Seedance via BytePlus ModelArk ============
 
-const FAL_KEY = process.env.FAL_KEY
+const BYTEDANCE_API_KEY = process.env.BYTEDANCE_API_KEY
+const BYTEDANCE_API_BASE = 'https://ark.ap-southeast.bytepluses.com/api/v3'
 
-function initFal() {
-  if (FAL_KEY) {
-    fal.config({ credentials: FAL_KEY })
+class ByteDanceApiError extends Error {
+  statusCode: number
+  body: string
+
+  constructor(statusCode: number, body: string) {
+    super(`ByteDance API error ${statusCode}`)
+    this.statusCode = statusCode
+    this.body = body
   }
 }
 
-function getFalStatusCode(error: unknown): number | null {
-  const anyErr = error as any
-  return typeof anyErr?.status === 'number'
-    ? anyErr.status
-    : typeof anyErr?.statusCode === 'number'
-      ? anyErr.statusCode
-      : null
+async function bytedanceRequest(path: string, body?: any): Promise<any> {
+  if (!BYTEDANCE_API_KEY) {
+    throw new Error('BYTEDANCE_API_KEY must be set')
+  }
+
+  const url = `${BYTEDANCE_API_BASE}${path}`
+  const options: RequestInit = {
+    method: body ? 'POST' : 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${BYTEDANCE_API_KEY}`,
+    },
+  }
+
+  if (body) {
+    options.body = JSON.stringify(body)
+  }
+
+  const response = await fetch(url, options)
+  if (!response.ok) {
+    const text = await response.text()
+    throw new ByteDanceApiError(response.status, text)
+  }
+
+  return response.json()
 }
 
 export async function generateWithSeedance(
@@ -43,53 +65,72 @@ export async function generateWithSeedance(
   config: SeedanceConfig,
   referenceImageUrl?: string | null
 ): Promise<VideoGenerationResult> {
-  if (!FAL_KEY) {
-    return { success: false, error: 'FAL_KEY not configured. Set FAL_KEY environment variable.' }
+  if (!BYTEDANCE_API_KEY) {
+    return { success: false, error: 'BYTEDANCE_API_KEY not configured. Set BYTEDANCE_API_KEY environment variable.' }
   }
 
-  initFal()
-
   try {
-    const { modelId, input } = mapSeedanceRequest(prompt, config, referenceImageUrl)
+    const { endpoint, body } = mapSeedanceRequest(prompt, config, referenceImageUrl)
 
-    console.log(`[VideoGen] Seedance ${referenceImageUrl ? 'I2V' : 'T2V'} — model: ${modelId}`)
-    console.log(`[VideoGen] Input:`, JSON.stringify(input, null, 2))
+    console.log(`[VideoGen] Seedance ${referenceImageUrl ? 'I2V' : 'T2V'} — endpoint: ${endpoint}`)
+    console.log(`[VideoGen] Input:`, JSON.stringify(body, null, 2))
 
-    const result = await fal.subscribe(modelId, {
-      input,
-      logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === 'IN_PROGRESS') {
-          const logs = (update as any).logs
-          if (logs) {
-            logs.map((log: any) => log.message).forEach((msg: string) => {
-              console.log(`[VideoGen] Seedance progress: ${msg}`)
-            })
+    const submitResult = await bytedanceRequest(endpoint, body)
+    const taskId =
+      submitResult?.task_id ||
+      submitResult?.id ||
+      submitResult?.data?.task_id ||
+      submitResult?.data?.id
+
+    if (!taskId) {
+      return { success: false, error: `No task_id returned from BytePlus API. Response: ${JSON.stringify(submitResult)}` }
+    }
+
+    console.log(`[VideoGen] Seedance task submitted: ${taskId}`)
+
+    const maxAttempts = 120
+    const pollInterval = 3000
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+
+      const statusResult = await bytedanceRequest(`/content_generation/tasks/${taskId}`)
+      const taskStatus = statusResult?.status
+
+      console.log(`[VideoGen] Seedance poll ${i + 1}/${maxAttempts}: status=${taskStatus}`)
+
+      if (taskStatus === 'succeeded') {
+        const content = Array.isArray(statusResult?.content) ? statusResult.content : []
+        const videoItem = content.find((item: any) => item?.type === 'video')
+        const videoUrl = videoItem?.video?.url
+        if (videoUrl) {
+          return {
+            success: true,
+            videoUrl,
+            requestId: taskId,
+            status: 'completed',
           }
         }
-      },
-    })
+        return { success: false, error: 'Seedance task succeeded but no video URL found', requestId: taskId, status: 'failed' }
+      }
 
-    const data = result.data as any
-    if (data?.video?.url) {
-      console.log(`[VideoGen] Seedance success: ${data.video.url}`)
-      return {
-        success: true,
-        videoUrl: data.video.url,
-        requestId: result.requestId,
-        status: 'completed',
+      if (taskStatus === 'failed') {
+        const failMsg = statusResult?.error?.message || statusResult?.message || 'Unknown failure'
+        return { success: false, error: `Seedance generation failed: ${failMsg}`, requestId: taskId, status: 'failed' }
       }
     }
 
-    return { success: false, error: 'No video URL in Seedance response' }
+    return { success: false, error: 'Seedance generation timed out after 6 minutes', requestId: taskId, status: 'processing' }
   } catch (error) {
-    const statusCode = getFalStatusCode(error) ?? 500
-    const body = error instanceof Error ? error.message : 'Seedance generation failed'
-    const mapped = mapProviderError('fal', statusCode, body)
+    if (error instanceof ByteDanceApiError) {
+      const mapped = mapProviderError('bytedance', error.statusCode, error.body)
+      return { success: false, error: mapped.message }
+    }
+
     console.error('[VideoGen] Seedance error:', error)
     return {
       success: false,
-      error: mapped.message,
+      error: error instanceof Error ? error.message : 'Seedance generation failed',
     }
   }
 }

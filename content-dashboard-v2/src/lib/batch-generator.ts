@@ -32,6 +32,7 @@ function buildSeedanceConfig(
     duration: coerceDuration(params.duration ?? workflow.duration),
     aspect_ratio: (params.aspect_ratio ?? workflow.aspectRatio ?? '9:16') as SeedanceConfig['aspect_ratio'],
     watermark: params.watermark ?? false,
+    generate_audio: params.generate_audio ?? true,
     seed: params.seed ?? null,
     camerafixed: params.camerafixed ?? false,
   }

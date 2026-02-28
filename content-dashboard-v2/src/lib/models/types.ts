@@ -23,13 +23,14 @@ export interface NanoBanana2Config {
   num_images: 1 | 2 | 3 | 4
 }
 
-/** Seedance 1.5 Pro — Video generation via fal.ai */
+/** Seedance 1.5 Pro — Video generation via BytePlus ModelArk */
 export interface SeedanceConfig {
   model: 'seedance'
   resolution: '480p' | '720p' | '1080p'
   duration: '5' | '10'
   aspect_ratio: '1:1' | '3:2' | '2:3' | '16:9' | '9:16' | '21:9' | '9:21'
   watermark: boolean
+  generate_audio: boolean
   seed: number | null
   camerafixed: boolean
 }
@@ -98,6 +99,7 @@ export const MODEL_DEFAULTS: Record<ModelId, ModelConfig> = {
     duration: '5',
     aspect_ratio: '9:16',
     watermark: false,
+    generate_audio: true,
     seed: null,
     camerafixed: false,
   },

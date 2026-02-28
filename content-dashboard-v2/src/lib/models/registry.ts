@@ -17,7 +17,7 @@ export interface ModelRegistryEntry {
   id: ModelId
   name: string
   type: ModelType
-  provider: 'gemini' | 'fal' | 'kling'
+  provider: 'gemini' | 'bytedance' | 'kling'
   envKeys: string[]
   supportsReferenceImage: boolean
   costEstimate: string
@@ -139,10 +139,10 @@ export const MODEL_REGISTRY: Record<ModelId, ModelRegistryEntry> = {
     id: 'seedance',
     name: 'Seedance 1.5 Pro',
     type: 'video',
-    provider: 'fal',
-    envKeys: ['FAL_KEY'],
+    provider: 'bytedance',
+    envKeys: ['BYTEDANCE_API_KEY'],
     supportsReferenceImage: true,
-    costEstimate: '~$0.15–0.62/clip',
+    costEstimate: '~$0.99/5s 720p',
     params: [
       {
         key: 'resolution',
@@ -190,6 +190,14 @@ export const MODEL_REGISTRY: Record<ModelId, ModelRegistryEntry> = {
         default: false,
         required: false,
         description: 'Add watermark to output',
+      },
+      {
+        key: 'generate_audio',
+        label: 'Generate Audio',
+        type: 'toggle',
+        default: true,
+        required: false,
+        description: 'Include audio track in output (if supported)',
       },
       {
         key: 'seed',
@@ -324,11 +332,9 @@ export function estimateCost(modelId: ModelId, params: Record<string, any>): num
       return perImage * numImages
     }
     case 'seedance': {
-      const res = params.resolution || '720p'
       const dur = parseInt(params.duration || '5', 10)
-      // Base cost per 5s by resolution (fal.ai actual pricing)
-      const base = res === '480p' ? 0.15 : res === '720p' ? 0.35 : 0.62
-      return dur === 10 ? base * 1.8 : base
+      const base = 0.99
+      return dur === 10 ? base * 2 : base
     }
     case 'kling': {
       const dur = parseInt(params.duration || '5', 10)
