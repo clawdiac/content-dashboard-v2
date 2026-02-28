@@ -19,6 +19,7 @@ interface ModelSelectorProps {
 export function ModelSelector({ value, onChange, filter }: ModelSelectorProps) {
   const [availability, setAvailability] = useState<Record<ModelId, boolean>>({
     nano_banana_pro: true,
+    nano_banana_2: true,
     seedance: true,
     kling: true,
   })

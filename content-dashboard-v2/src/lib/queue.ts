@@ -268,7 +268,7 @@ class GenerationQueue {
 
       this.notifySSE(item.batchId, 'item-generating', { contentItemId: item.contentItemId })
 
-      if (item.modelConfig.model !== 'nano_banana_pro') {
+      if (item.modelConfig.model !== 'nano_banana_pro' && item.modelConfig.model !== 'nano_banana_2') {
         throw new Error(`Invalid image model for image queue: ${item.modelConfig.model}`)
       }
 

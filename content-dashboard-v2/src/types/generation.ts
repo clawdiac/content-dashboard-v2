@@ -2,14 +2,14 @@
 
 // ============ Image Generation (Nano Banana / Gemini) ============
 
-export type GeneratorModel = 'nano_banana_pro' | 'kling' | 'seedance'
+export type GeneratorModel = 'nano_banana_pro' | 'nano_banana_2' | 'kling' | 'seedance'
 
 export type AspectRatio =
   | '16:9' | '9:16' | '1:1' | '4:3' | '3:4'
   | '21:9' | '9:21' | '2:3' | '3:2' | '9:8'
 
 export type Resolution = '1024' | '1536' | '2048'
-export type QualityLabel = '1K' | '2K' | '4K'
+export type QualityLabel = '0.5K' | '1K' | '2K' | '4K'
 
 export interface ImageGenerationRequest {
   prompt: string

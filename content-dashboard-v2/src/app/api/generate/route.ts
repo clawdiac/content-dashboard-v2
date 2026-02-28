@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateImage } from '@/lib/generation'
 import { requireApiAuth } from '@/lib/api-auth'
-import { MODEL_DEFAULTS, type ModelConfig, type NanoBananaProConfig } from '@/lib/models'
+import { MODEL_DEFAULTS, type ModelConfig, type NanoBananaProConfig, type NanoBanana2Config } from '@/lib/models'
 import { validateModelConfig } from '@/lib/models/validator'
 import path from 'path'
 import fs from 'fs'
@@ -83,17 +83,30 @@ export async function POST(request: NextRequest) {
     if (modelConfig) {
       resolvedConfig = modelConfig as ModelConfig
     } else {
-      const base = MODEL_DEFAULTS.nano_banana_pro as NanoBananaProConfig
-      resolvedConfig = {
-        ...base,
-        aspect_ratio: aspectRatio as NanoBananaProConfig['aspect_ratio'],
-        resolution: quality as NanoBananaProConfig['resolution'],
-        num_images: numImages as NanoBananaProConfig['num_images'],
+      if (model === 'nano_banana_2') {
+        const base = MODEL_DEFAULTS.nano_banana_2 as NanoBanana2Config
+        resolvedConfig = {
+          ...base,
+          aspect_ratio: aspectRatio as NanoBanana2Config['aspect_ratio'],
+          resolution: quality as NanoBanana2Config['resolution'],
+          num_images: numImages as NanoBanana2Config['num_images'],
+        }
+      } else {
+        const base = MODEL_DEFAULTS.nano_banana_pro as NanoBananaProConfig
+        resolvedConfig = {
+          ...base,
+          aspect_ratio: aspectRatio as NanoBananaProConfig['aspect_ratio'],
+          resolution: quality as NanoBananaProConfig['resolution'],
+          num_images: numImages as NanoBananaProConfig['num_images'],
+        }
       }
     }
 
-    if (resolvedConfig.model !== 'nano_banana_pro' && model === 'nano_banana_pro') {
+    if (model === 'nano_banana_pro' && resolvedConfig.model !== 'nano_banana_pro') {
       resolvedConfig = { ...(resolvedConfig as any), model: 'nano_banana_pro' }
+    }
+    if (model === 'nano_banana_2' && resolvedConfig.model !== 'nano_banana_2') {
+      resolvedConfig = { ...(resolvedConfig as any), model: 'nano_banana_2' }
     }
 
     const validation = validateModelConfig(resolvedConfig)
@@ -101,14 +114,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validation.errors.join('; ') }, { status: 400 })
     }
 
-    if (resolvedConfig.model !== 'nano_banana_pro') {
+    if (resolvedConfig.model !== 'nano_banana_pro' && resolvedConfig.model !== 'nano_banana_2') {
       return NextResponse.json(
-        { error: 'This endpoint only supports nano_banana_pro image generation.' },
+        { error: 'This endpoint only supports Nano Banana image generation.' },
         { status: 400 }
       )
     }
 
-    const result = await generateImage(prompt, resolvedConfig as NanoBananaProConfig, resolvedReferenceUrl)
+    const result = await generateImage(prompt, resolvedConfig as NanoBananaProConfig | NanoBanana2Config, resolvedReferenceUrl)
 
     if (!result.success) {
       return NextResponse.json(
@@ -140,8 +153,8 @@ export async function POST(request: NextRequest) {
       localUrl: fullUrl,
       metadata: {
         model: resolvedConfig.model,
-        aspectRatio: (resolvedConfig as NanoBananaProConfig).aspect_ratio,
-        quality: (resolvedConfig as NanoBananaProConfig).resolution,
+        aspectRatio: (resolvedConfig as NanoBananaProConfig | NanoBanana2Config).aspect_ratio,
+        quality: (resolvedConfig as NanoBananaProConfig | NanoBanana2Config).resolution,
         prompt,
         negativePrompt,
       },

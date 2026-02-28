@@ -1,10 +1,10 @@
-import type { ModelConfig, NanoBananaProConfig, SeedanceConfig, KlingConfig } from './types'
+import type { ModelConfig, NanoBananaProConfig, NanoBanana2Config, SeedanceConfig, KlingConfig } from './types'
 
 // ============ Nano Banana Pro → Gemini API ============
 
 export function mapNanoBananaProRequest(
   prompt: string,
-  config: NanoBananaProConfig,
+  config: NanoBananaProConfig | NanoBanana2Config,
   referenceImageBase64?: { data: string; mimeType: string } | { data: string; mimeType: string }[] | null
 ) {
   const parts: any[] = []
@@ -40,6 +40,16 @@ export function mapNanoBananaProRequest(
       },
     },
   }
+}
+
+// ============ Nano Banana 2 → Gemini API ============
+
+export function mapNanoBanana2Request(
+  prompt: string,
+  config: NanoBanana2Config,
+  referenceImageBase64?: { data: string; mimeType: string } | { data: string; mimeType: string }[] | null
+) {
+  return mapNanoBananaProRequest(prompt, config, referenceImageBase64)
 }
 
 // ============ Seedance → fal.ai API ============
@@ -139,6 +149,8 @@ export function mapConfigToApiRequest(
   switch (config.model) {
     case 'nano_banana_pro':
       return { provider: 'gemini' as const, payload: mapNanoBananaProRequest(prompt, config, referenceImageBase64) }
+    case 'nano_banana_2':
+      return { provider: 'gemini' as const, payload: mapNanoBanana2Request(prompt, config, referenceImageBase64) }
     case 'seedance':
       return { provider: 'fal' as const, payload: mapSeedanceRequest(prompt, config, referenceImageUrl) }
     case 'kling':

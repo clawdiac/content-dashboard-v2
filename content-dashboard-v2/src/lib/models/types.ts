@@ -1,6 +1,6 @@
 // ============ Model IDs ============
 
-export type ModelId = 'nano_banana_pro' | 'seedance' | 'kling'
+export type ModelId = 'nano_banana_pro' | 'nano_banana_2' | 'seedance' | 'kling'
 export type ModelType = 'image' | 'video'
 
 // ============ Per-Model Config Interfaces ============
@@ -10,6 +10,16 @@ export interface NanoBananaProConfig {
   model: 'nano_banana_pro'
   aspect_ratio: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9'
   resolution: '1K' | '2K' | '4K'
+  num_images: 1 | 2 | 3 | 4
+}
+
+/** Nano Banana 2 (Gemini 3.1 Flash Image) — Image generation */
+export interface NanoBanana2Config {
+  model: 'nano_banana_2'
+  aspect_ratio:
+    | '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9'
+    | '1:4' | '4:1' | '1:8' | '8:1'
+  resolution: '0.5K' | '1K' | '2K' | '4K'
   num_images: 1 | 2 | 3 | 4
 }
 
@@ -53,7 +63,7 @@ export interface KlingAdvancedCamera {
 
 // ============ Union Type ============
 
-export type ModelConfig = NanoBananaProConfig | SeedanceConfig | KlingConfig
+export type ModelConfig = NanoBananaProConfig | NanoBanana2Config | SeedanceConfig | KlingConfig
 
 // ============ Generation Request ============
 
@@ -74,6 +84,12 @@ export const MODEL_DEFAULTS: Record<ModelId, ModelConfig> = {
     model: 'nano_banana_pro',
     aspect_ratio: '9:16',
     resolution: '2K',
+    num_images: 1,
+  },
+  nano_banana_2: {
+    model: 'nano_banana_2',
+    aspect_ratio: '9:16',
+    resolution: '1K',
     num_images: 1,
   },
   seedance: {

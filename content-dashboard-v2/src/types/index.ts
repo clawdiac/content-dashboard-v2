@@ -157,6 +157,7 @@ export type {
   ModelType,
   ModelConfig,
   NanoBananaProConfig,
+  NanoBanana2Config,
   SeedanceConfig,
   KlingConfig,
   KlingCameraPreset,

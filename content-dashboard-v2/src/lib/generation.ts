@@ -3,8 +3,8 @@
 // With retry logic (max 3 retries on timeout) and 30s timeout per request
 
 import { fetchWithRetry } from '@/lib/api-client'
-import { mapNanoBananaProRequest } from '@/lib/models/mapper'
-import type { NanoBananaProConfig } from '@/lib/models'
+import { mapNanoBananaProRequest, mapNanoBanana2Request } from '@/lib/models/mapper'
+import type { NanoBananaProConfig, NanoBanana2Config } from '@/lib/models'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
@@ -47,7 +47,7 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
 // Gemini image generation via mapper
 export async function generateWithGemini(
   prompt: string,
-  config: NanoBananaProConfig,
+  config: NanoBananaProConfig | NanoBanana2Config,
   referenceImageUrls?: (string | null)[] | string | null
 ): Promise<GenerationResult> {
   if (!GEMINI_API_KEY) {
@@ -76,13 +76,13 @@ export async function generateWithGemini(
     }
 
     // Use mapper to build request
-    const requestBody = mapNanoBananaProRequest(
-      prompt,
-      config,
-      refImagesBase64.length > 0 ? refImagesBase64 : null
-    )
+    const requestBody = config.model === 'nano_banana_2'
+      ? mapNanoBanana2Request(prompt, config as NanoBanana2Config, refImagesBase64.length > 0 ? refImagesBase64 : null)
+      : mapNanoBananaProRequest(prompt, config as NanoBananaProConfig, refImagesBase64.length > 0 ? refImagesBase64 : null)
 
-    const model = 'gemini-3-pro-image-preview'
+    const model = config.model === 'nano_banana_2'
+      ? 'gemini-3.1-flash-image-preview'
+      : 'gemini-3-pro-image-preview'
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
 
     const response = await fetchWithRetry(
@@ -139,6 +139,9 @@ export async function generateImage(
   switch (config.model) {
     case 'nano_banana_pro': {
       return generateWithGemini(prompt, config as NanoBananaProConfig, referenceImageUrls || null)
+    }
+    case 'nano_banana_2': {
+      return generateWithGemini(prompt, config as NanoBanana2Config, referenceImageUrls || null)
     }
     default:
       return { success: false, error: `Unknown image model: ${config.model}` }

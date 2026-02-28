@@ -77,6 +77,63 @@ export const MODEL_REGISTRY: Record<ModelId, ModelRegistryEntry> = {
       },
     ],
   },
+  nano_banana_2: {
+    id: 'nano_banana_2',
+    name: 'Nano Banana 2',
+    type: 'image',
+    provider: 'gemini',
+    envKeys: ['GEMINI_API_KEY'],
+    supportsReferenceImage: true,
+    costEstimate: '~$0.045–0.15/img',
+    params: [
+      {
+        key: 'aspect_ratio',
+        label: 'Aspect Ratio',
+        type: 'select',
+        options: [
+          { value: '1:1', label: '1:1' },
+          { value: '2:3', label: '2:3' },
+          { value: '3:2', label: '3:2' },
+          { value: '3:4', label: '3:4' },
+          { value: '4:3', label: '4:3' },
+          { value: '4:5', label: '4:5' },
+          { value: '5:4', label: '5:4' },
+          { value: '9:16', label: '9:16' },
+          { value: '16:9', label: '16:9' },
+          { value: '21:9', label: '21:9' },
+          { value: '1:4', label: '1:4' },
+          { value: '4:1', label: '4:1' },
+          { value: '1:8', label: '1:8' },
+          { value: '8:1', label: '8:1' },
+        ],
+        default: '9:16',
+        required: false,
+      },
+      {
+        key: 'resolution',
+        label: 'Resolution',
+        type: 'select',
+        options: [
+          { value: '0.5K', label: '0.5K (Fastest)' },
+          { value: '1K', label: '1K (Fast)' },
+          { value: '2K', label: '2K (Standard)' },
+          { value: '4K', label: '4K (High Quality)' },
+        ],
+        default: '1K',
+        required: false,
+      },
+      {
+        key: 'num_images',
+        label: 'Number of Images',
+        type: 'number',
+        min: 1,
+        max: 4,
+        step: 1,
+        default: 1,
+        required: false,
+      },
+    ],
+  },
 
   seedance: {
     id: 'seedance',
@@ -254,6 +311,16 @@ export function estimateCost(modelId: ModelId, params: Record<string, any>): num
       const res = params.resolution || '2K'
       const numImages = params.num_images || 1
       const perImage = res === '1K' ? 0.03 : res === '2K' ? 0.06 : 0.08
+      return perImage * numImages
+    }
+    case 'nano_banana_2': {
+      const res = params.resolution || '1K'
+      const numImages = params.num_images || 1
+      const perImage =
+        res === '0.5K' ? 0.045 :
+        res === '1K' ? 0.067 :
+        res === '2K' ? 0.101 :
+        0.151
       return perImage * numImages
     }
     case 'seedance': {
