@@ -32,5 +32,5 @@ export async function POST(request: Request) {
     },
   })
 
-  return NextResponse.json(character)
+  return NextResponse.json(character, { status: 201 })
 }
