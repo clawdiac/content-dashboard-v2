@@ -81,7 +81,7 @@ export function mapSeedanceRequest(
     content,
   }
 
-  return { endpoint: '/content_generation/tasks', body }
+  return { endpoint: '/contents/generations/tasks', body }
 }
 
 // ============ Kling → Kling Direct API ============

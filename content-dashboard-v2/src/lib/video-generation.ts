@@ -94,7 +94,7 @@ export async function generateWithSeedance(
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, pollInterval))
 
-      const statusResult = await bytedanceRequest(`/content_generation/tasks/${taskId}`)
+      const statusResult = await bytedanceRequest(`/contents/generations/tasks/${taskId}`)
       const taskStatus = statusResult?.status
 
       console.log(`[VideoGen] Seedance poll ${i + 1}/${maxAttempts}: status=${taskStatus}`)
