@@ -100,10 +100,10 @@ export async function generateWithSeedance(
       console.log(`[VideoGen] Seedance poll ${i + 1}/${maxAttempts}: status=${taskStatus}`)
 
       if (taskStatus === 'succeeded') {
-        const content = Array.isArray(statusResult?.content) ? statusResult.content : []
-        const videoItem = content.find((item: any) => item?.type === 'video')
-        const videoUrl = videoItem?.video?.url
+        // Seedance returns video_url in content object
+        const videoUrl = statusResult?.content?.video_url || statusResult?.video_url
         if (videoUrl) {
+          console.log(`[VideoGen] Seedance succeeded! Video: ${videoUrl.split('?')[0]}`)
           return {
             success: true,
             videoUrl,
@@ -111,7 +111,7 @@ export async function generateWithSeedance(
             status: 'completed',
           }
         }
-        return { success: false, error: 'Seedance task succeeded but no video URL found', requestId: taskId, status: 'failed' }
+        return { success: false, error: 'Seedance task succeeded but no video_url found in response.content', requestId: taskId, status: 'failed' }
       }
 
       if (taskStatus === 'failed') {
