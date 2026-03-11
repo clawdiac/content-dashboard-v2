@@ -86,10 +86,17 @@ export interface BatchWorkflow {
   queuedCharacters?: { id: string; name: string }[]
 }
 
-interface CreateWorkflowInput {
-  presetId: string
-  provider: BatchWorkflowProvider
-}
+export type CreateWorkflowInput = { provider: BatchWorkflowProvider } & (
+  | { presetType: 'video'; presetId: string; promptTemplate: string; duration?: number; aspectRatio?: string; resolution?: string }
+  | {
+      presetType: 'character'
+      characterPresetName: string
+      promptTemplate: string
+      duration: number
+      aspectRatio: string
+      resolution?: string
+    }
+)
 
 interface ConfirmWorkflowInput {
   approvedPreviewId?: string
@@ -127,6 +134,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const hasFetchedRef = useRef(false)
 
   const clearPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -185,7 +193,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     }
   }, [])
 
-  const generatePreviews = useCallback(async (id?: string) => {
+  const generatePreviews = useCallback(async (id?: string, promptOverride?: string) => {
     const targetId = id || workflowId
     if (!targetId) return null
 
@@ -196,7 +204,11 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     try {
       const data = await fetchJson<{ previews: BatchWorkflowPreview[]; previewCharacter: { id: string; name: string } }>(
         `/api/batch-workflow/${targetId}/preview`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          headers: promptOverride ? { 'Content-Type': 'application/json' } : undefined,
+          body: promptOverride ? JSON.stringify({ prompt: promptOverride }) : undefined,
+        }
       )
       setPreviews(data.previews)
       setWorkflow((prev) => prev ? { ...prev, status: 'previewing', previewCharacter: data.previewCharacter } : prev)
@@ -287,6 +299,35 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     [workflowId, fetchWorkflow]
   )
 
+  const pollPreviews = useCallback(
+    async (id?: string) => {
+      const targetId = id || workflowId
+      if (!targetId) return null
+
+      try {
+        const data = await fetchJson<{
+          previews: BatchWorkflowPreview[]
+        }>(`/api/batch-workflow/${targetId}/preview/status`)
+
+        setPreviews(data.previews)
+
+        // Check if all previews are done
+        const allDone =
+          data.previews.length > 0 &&
+          data.previews.every((p) => p.status === 'completed' || p.status === 'failed')
+        if (allDone) {
+          // Stop polling — previews are ready for user selection
+          clearPolling()
+        }
+
+        return data
+      } catch {
+        return null
+      }
+    },
+    [workflowId, clearPolling]
+  )
+
   const cancelWorkflow = useCallback(async (id?: string) => {
     const targetId = id || workflowId
     if (!targetId) return null
@@ -307,8 +348,14 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     }
   }, [workflowId])
 
+  // Fetch workflow on mount when initialWorkflowId is provided
   useEffect(() => {
-    if (initialWorkflowId && initialWorkflowId !== workflowId) {
+    if (initialWorkflowId && !hasFetchedRef.current) {
+      hasFetchedRef.current = true
+      setWorkflowId(initialWorkflowId)
+      fetchWorkflow(initialWorkflowId, { silent: true })
+    } else if (initialWorkflowId && initialWorkflowId !== workflowId) {
+      hasFetchedRef.current = true
       setWorkflowId(initialWorkflowId)
       fetchWorkflow(initialWorkflowId, { silent: true })
     }
@@ -316,11 +363,13 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
 
   useEffect(() => {
     clearPolling()
-    if (status !== 'generating' || !workflowId) return
-    pollStatus(workflowId)
-    pollingRef.current = setInterval(() => pollStatus(workflowId), 3000)
+    if ((status !== 'generating' && status !== 'previewing') || !workflowId) return
+
+    const pollFn = status === 'previewing' ? pollPreviews : pollStatus
+    pollFn(workflowId)
+    pollingRef.current = setInterval(() => pollFn(workflowId), 3000)
     return () => clearPolling()
-  }, [status, workflowId, pollStatus, clearPolling])
+  }, [status, workflowId, pollStatus, pollPreviews, clearPolling])
 
   return {
     workflow,
@@ -336,6 +385,7 @@ export function useBatchWorkflow(initialWorkflowId?: string) {
     selectPreview,
     confirmWorkflow,
     pollStatus,
+    pollPreviews,
     cancelWorkflow,
     setWorkflowId,
   }

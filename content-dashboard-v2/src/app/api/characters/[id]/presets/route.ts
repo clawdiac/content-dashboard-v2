@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireApiAuth } from '@/lib/api-auth'
+import { uploadToImgBB } from '@/lib/imgbb'
+import path from 'path'
 
 export async function POST(
   request: Request,
@@ -20,10 +22,24 @@ export async function POST(
     )
   }
 
+  // Resolve relative paths to absolute filesystem paths
+  let imgbbInput = imageUrl
+  if (imageUrl.startsWith('/') && !imageUrl.startsWith('//')) {
+    imgbbInput = path.join(process.cwd(), 'public', imageUrl)
+  }
+
+  let finalImageUrl = imageUrl
+  try {
+    finalImageUrl = await uploadToImgBB(imgbbInput)
+    console.log(`[IMGBB] Uploaded preset image: ${finalImageUrl}`)
+  } catch (e) {
+    console.warn(`[IMGBB] Upload failed, using original URL:`, e)
+  }
+
   const preset = await prisma.characterPreset.create({
     data: {
       name,
-      imageUrl,
+      imageUrl: finalImageUrl,
       characterId: id,
       generationParams: generationParams || null,
     },

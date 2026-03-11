@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireApiAuth } from '@/lib/api-auth'
+import { batchWorkflowQueue } from '@/lib/batch-queue'
 
 // POST /api/batch-workflow/[id]/confirm — Lock seed/prompt and start batch generation
 export async function POST(
@@ -107,6 +108,11 @@ export async function POST(
           data: { prompt: lockedPrompt },
         })
       }
+    })
+
+    // Fire-and-forget: start processing the batch queue
+    batchWorkflowQueue.startWorkflow(id).catch((err) => {
+      console.error(`[BatchQueue] Failed to start workflow ${id}:`, err)
     })
 
     // Return updated workflow

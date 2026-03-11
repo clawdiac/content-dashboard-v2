@@ -20,18 +20,50 @@ export async function POST(request: NextRequest) {
       duration = 5,
       aspectRatio = '9:16',
       resolution = '720p',
-      items,
+      items: rawItems,
       modelConfig,
+      characterPresetIds,
     } = body as any
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    const hasCharPresets = Array.isArray(characterPresetIds) && characterPresetIds.length > 0
+
+    // Allow empty items array when characterPresetIds is provided
+    let items: any[] = Array.isArray(rawItems) ? rawItems : []
+    if (!hasCharPresets && items.length === 0) {
       return NextResponse.json(
         { error: 'items array is required and must not be empty' },
         { status: 400 }
       )
     }
 
-    if (items.length > 10) {
+    // Expand characterPresetIds into additional items
+    let expandedItems = [...items]
+
+    if (hasCharPresets) {
+      const charPresets = await prisma.characterPreset.findMany({
+        where: { id: { in: characterPresetIds } },
+        include: { character: true },
+      })
+
+      const charPresetItems = charPresets.map((cp: any) => ({
+        title: `${cp.character.name} — ${cp.name}`,
+        prompt: body.prompt || '',
+        referenceImageUrl: cp.imageUrl,
+        characterId: cp.characterId,
+        characterPresetId: cp.id,
+      }))
+
+      expandedItems = [...expandedItems, ...charPresetItems]
+    }
+
+    if (expandedItems.length === 0) {
+      return NextResponse.json(
+        { error: 'No items to process' },
+        { status: 400 }
+      )
+    }
+
+    if (expandedItems.length > 10) {
       return NextResponse.json(
         { error: 'Maximum 10 videos per batch' },
         { status: 400 }
@@ -93,13 +125,13 @@ export async function POST(request: NextRequest) {
         name: name || `Video Batch ${new Date().toISOString().slice(0, 16)}`,
         type: 'video',
         status: 'processing',
-        totalItems: items.length,
+        totalItems: expandedItems.length,
       },
     })
 
     // Create content items
     const contentItems = await Promise.all(
-      items.map(async (item: any, index: number) => {
+      expandedItems.map(async (item: any, index: number) => {
         let itemPrompt = item.prompt
         if (presetPromptTemplate && presetPromptTemplate.includes('{action}')) {
           itemPrompt = presetPromptTemplate.replace('{action}', item.prompt)

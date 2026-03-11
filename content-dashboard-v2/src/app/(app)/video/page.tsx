@@ -11,6 +11,7 @@ import {
   VideoModeSelector,
   ApprovedImagesSelector,
   VideoPresetSelector,
+  CharacterPresetSelector,
   VideoPromptEditor,
   VideoProgressGrid,
   type VideoMode,
@@ -30,6 +31,7 @@ export default function VideoWorkflowPage() {
   // Selection state
   const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set())
   const [selectedPresetIds, setSelectedPresetIds] = useState<Set<string>>(new Set())
+  const [selectedCharPresetIds, setSelectedCharPresetIds] = useState<Set<string>>(new Set())
 
   // Prompt state
   const [prompt, setPrompt] = useState('')
@@ -102,11 +104,20 @@ export default function VideoWorkflowPage() {
     })
   }, [])
 
-  // Validation (fix 4: mixed requires BOTH images AND presets)
+  const toggleCharPreset = useCallback((id: string) => {
+    setSelectedCharPresetIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  // Validation
   const hasSource =
     (mode === 'from-images' && selectedImageIds.size > 0) ||
-    (mode === 'from-presets' && selectedPresetIds.size > 0) ||
-    (mode === 'mixed' && (selectedImageIds.size > 0 && selectedPresetIds.size > 0))
+    (mode === 'from-presets' && (selectedPresetIds.size > 0 || selectedCharPresetIds.size > 0)) ||
+    (mode === 'mixed' && (selectedImageIds.size > 0 || selectedCharPresetIds.size > 0) && selectedPresetIds.size > 0)
 
   const canGenerate = prompt.trim().length > 0 && hasSource && !submitting
 
@@ -132,10 +143,12 @@ export default function VideoWorkflowPage() {
       }
       if (mode === 'from-presets' || mode === 'mixed') {
         body.presetIds = Array.from(selectedPresetIds)
+        body.characterPresetIds = Array.from(selectedCharPresetIds)
       }
 
-      // Mode 1/3 use /api/video, Mode 2 uses /api/video/batch
-      const endpoint = mode === 'from-presets' ? '/api/video/batch' : '/api/video'
+      const endpoint = (mode === 'from-presets' || selectedCharPresetIds.size > 0)
+        ? '/api/video/batch'
+        : '/api/video'
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -178,7 +191,7 @@ export default function VideoWorkflowPage() {
     } finally {
       setSubmitting(false)
     }
-  }, [canGenerate, mode, prompt, videoModel, seed, durationOverride, aspectRatioOverride, selectedImageIds, selectedPresetIds, clearError])
+  }, [canGenerate, mode, prompt, videoModel, seed, durationOverride, aspectRatioOverride, selectedImageIds, selectedPresetIds, selectedCharPresetIds, clearError])
 
   // ⌘+Enter shortcut
   useEffect(() => {
@@ -213,8 +226,8 @@ export default function VideoWorkflowPage() {
 
   const itemCount =
     mode === 'from-images' ? selectedImageIds.size :
-    mode === 'from-presets' ? selectedPresetIds.size :
-    selectedImageIds.size + selectedPresetIds.size
+    mode === 'from-presets' ? selectedPresetIds.size + selectedCharPresetIds.size :
+    selectedImageIds.size + selectedPresetIds.size + selectedCharPresetIds.size
 
   return (
     <div className="h-full flex flex-col lg:flex-row gap-0 overflow-hidden">
@@ -255,13 +268,23 @@ export default function VideoWorkflowPage() {
           )}
 
           {(mode === 'from-presets' || mode === 'mixed') && (
-            <section className="space-y-2">
-              <h2 className="text-sm font-medium">Video Presets</h2>
-              <VideoPresetSelector
-                selectedIds={selectedPresetIds}
-                onToggle={togglePreset}
-              />
-            </section>
+            <>
+              <section className="space-y-2">
+                <h2 className="text-sm font-medium">Character Presets</h2>
+                <p className="text-xs text-muted-foreground">Use character reference images as video source</p>
+                <CharacterPresetSelector
+                  selectedIds={selectedCharPresetIds}
+                  onToggle={toggleCharPreset}
+                />
+              </section>
+              <section className="space-y-2">
+                <h2 className="text-sm font-medium">Video Presets</h2>
+                <VideoPresetSelector
+                  selectedIds={selectedPresetIds}
+                  onToggle={togglePreset}
+                />
+              </section>
+            </>
           )}
 
           {/* Prompt */}

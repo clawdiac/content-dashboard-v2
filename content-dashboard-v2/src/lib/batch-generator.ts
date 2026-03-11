@@ -4,6 +4,8 @@ import type { BatchWorkflow, BatchWorkflowPreview, BatchWorkflowQueueItem } from
 import type { SeedanceConfig, KlingConfig } from '@/lib/models/types'
 import { prisma } from '@/lib/prisma'
 import { generateBatchVideo, type BatchProviderResult, type BatchProvider } from '@/lib/providers'
+import { uploadToImgBB } from '@/lib/imgbb'
+import { uploadVideoToCloudinary } from '@/lib/cloudinary'
 
 const GENERATED_DIR = path.join(process.cwd(), 'public', 'generated')
 const VIDEO_DIR = path.join(GENERATED_DIR, 'videos')
@@ -87,6 +89,22 @@ function getProvider(workflow: BatchWorkflow): BatchProvider {
   return 'seedance'
 }
 
+async function resolveReferenceImageUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null
+  if (url.startsWith('https://')) return url
+  try {
+    const imagePath = url.startsWith('/')
+      ? path.join(process.cwd(), 'public', url)
+      : url
+    const publicUrl = await uploadToImgBB(imagePath)
+    console.log(`[BatchQueue] Uploaded reference image to ImgBB: ${publicUrl}`)
+    return publicUrl
+  } catch (err) {
+    console.error(`[BatchQueue] Failed to upload reference image to ImgBB:`, err)
+    return null
+  }
+}
+
 export interface BatchProcessResult {
   success: boolean
   skipped?: boolean
@@ -136,10 +154,17 @@ export async function processPreviewGeneration(previewId: string): Promise<Batch
     return { success: false, error: errorMsg }
   }
 
+  // Get reference image from the matching queue item
+  const queueItem = await prisma.batchWorkflowQueueItem.findFirst({
+    where: { workflowId: workflow.id, characterId: preview.characterId },
+    select: { referenceImageUrl: true },
+  })
+  const resolvedImageUrl = await resolveReferenceImageUrl(queueItem?.referenceImageUrl)
+
   let result: BatchProviderResult
   try {
     console.log(`[BatchQueue] Generating preview ${previewId} via ${provider}`)
-    result = await generateBatchVideo(provider, preview.prompt, config)
+    result = await generateBatchVideo(provider, preview.prompt, config, resolvedImageUrl)
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Preview generation failed'
     await prisma.batchWorkflowPreview.update({
@@ -150,20 +175,30 @@ export async function processPreviewGeneration(previewId: string): Promise<Batch
   }
 
   if (result.success && result.videoUrl) {
-    const localUrl = await downloadVideo(result.videoUrl, `preview_${previewId}`)
+    let finalUrl = result.videoUrl
+    try {
+      const cloudinaryUrl = await uploadVideoToCloudinary(result.videoUrl)
+      if (cloudinaryUrl !== result.videoUrl) {
+        finalUrl = cloudinaryUrl
+        console.log('[BatchQueue] Re-uploaded to Cloudinary:', cloudinaryUrl)
+      }
+    } catch (err) {
+      console.error('[BatchQueue] Cloudinary upload failed, falling back:', err)
+      finalUrl = await downloadVideo(result.videoUrl, `preview_${previewId}`)
+    }
     const finalSeed = result.seed ?? (provider === 'seedance' ? (config as import('@/lib/models/types').SeedanceConfig).seed ?? null : null)
 
     await prisma.batchWorkflowPreview.update({
       where: { id: previewId },
       data: {
         status: 'completed',
-        videoUrl: localUrl,
+        videoUrl: finalUrl,
         seed: finalSeed ?? preview.seed ?? null,
         error: null,
       },
     })
 
-    return { success: true, videoUrl: localUrl, seed: finalSeed ?? null }
+    return { success: true, videoUrl: finalUrl, seed: finalSeed ?? null }
   }
 
   const errorMsg = result.error || 'Preview generation failed'
@@ -238,10 +273,13 @@ export async function processBatchWorkflowItem(
     return { success: false, error: errorMsg }
   }
 
+  // Resolve reference image to public URL for external APIs
+  const resolvedItemImageUrl = await resolveReferenceImageUrl(item.referenceImageUrl)
+
   let result: BatchProviderResult
   try {
     console.log(`[BatchQueue] Generating queue item ${queueItemId} via ${provider}`)
-    result = await generateBatchVideo(provider, item.prompt, config)
+    result = await generateBatchVideo(provider, item.prompt, config, resolvedItemImageUrl)
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Video generation failed'
     if (options?.finalAttempt) {
@@ -263,11 +301,21 @@ export async function processBatchWorkflowItem(
   }
 
   if (result.success && result.videoUrl) {
-    const localUrl = await downloadVideo(result.videoUrl, `workflow_${workflow.id}_${queueItemId}`)
+    let finalUrl = result.videoUrl
+    try {
+      const cloudinaryUrl = await uploadVideoToCloudinary(result.videoUrl)
+      if (cloudinaryUrl !== result.videoUrl) {
+        finalUrl = cloudinaryUrl
+        console.log('[BatchQueue] Re-uploaded to Cloudinary:', cloudinaryUrl)
+      }
+    } catch (err) {
+      console.error('[BatchQueue] Cloudinary upload failed, falling back:', err)
+      finalUrl = await downloadVideo(result.videoUrl, `workflow_${workflow.id}_${queueItemId}`)
+    }
 
     await prisma.batchWorkflowQueueItem.update({
       where: { id: queueItemId },
-      data: { status: 'completed', videoUrl: localUrl, error: null },
+      data: { status: 'completed', videoUrl: finalUrl, error: null },
     })
 
     await prisma.batchWorkflow.update({
@@ -275,7 +323,31 @@ export async function processBatchWorkflowItem(
       data: { completedItems: { increment: 1 } },
     })
 
-    return { success: true, videoUrl: localUrl }
+    // Auto-promote to ContentItem so it appears in /library
+    try {
+      await prisma.contentItem.create({
+        data: {
+          title: `Video: ${(item.prompt || workflow.basePrompt || 'Batch video').slice(0, 55)}`,
+          prompt: item.prompt || workflow.basePrompt || '',
+          generator: provider,
+          status: 'generated',
+          type: 'video',
+          videoUrl: finalUrl,
+          characterId: item.characterId || null,
+          generationParams: {
+            source: 'batch_workflow',
+            batchWorkflowId: workflow.id,
+            batchQueueItemId: queueItemId,
+            workflowType: workflow.workflowType,
+          },
+        },
+      })
+      console.log(`[BatchQueue] Auto-promoted queue item ${queueItemId} to ContentItem (library)`)
+    } catch (promoteErr) {
+      console.error(`[BatchQueue] Failed to auto-promote queue item ${queueItemId} to ContentItem:`, promoteErr)
+    }
+
+    return { success: true, videoUrl: finalUrl }
   }
 
   const errorMsg = result.error || 'Video generation failed'

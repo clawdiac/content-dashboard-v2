@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useBatchWorkflow, type BatchWorkflow, type BatchWorkflowPreview } from '@/hooks/useBatchWorkflow'
+import { getVideoSrc } from '@/lib/video-url'
 
 interface SeedLockWorkflowProps {
   workflowId: string
@@ -101,11 +102,11 @@ export function SeedLockWorkflow({ workflowId, onConfirmed }: SeedLockWorkflowPr
                   animate={{ opacity: 1, scale: 1 }}
                   className="overflow-hidden rounded-lg border"
                 >
-                  <div className="relative aspect-video bg-muted/40">
+                  <div className="relative bg-muted/40 flex items-center justify-center" style={{ minHeight: '200px' }}>
                     {preview.videoUrl && preview.status === 'completed' ? (
                       <video
-                        src={preview.videoUrl}
-                        className="h-full w-full object-cover"
+                        src={getVideoSrc(preview.videoUrl)}
+                        className="max-h-[400px] w-auto rounded"
                         muted
                         playsInline
                         loop

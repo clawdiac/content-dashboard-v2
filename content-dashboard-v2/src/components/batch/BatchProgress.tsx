@@ -139,6 +139,20 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
                     {style.label}
                   </Badge>
                 </div>
+                {item.videoUrl && item.status === 'completed' && (
+                  <div className="px-2 pb-2">
+                    <a
+                      href={item.videoUrl}
+                      download={`${(item.character?.name ?? 'video').toLowerCase()}-${item.id.slice(-6)}.mp4`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Download
+                    </a>
+                  </div>
+                )}
                 {item.error && (
                   <div className="px-2 pb-2 text-[10px] text-red-500 truncate">{item.error}</div>
                 )}
@@ -149,8 +163,32 @@ export function BatchProgress({ workflowId }: BatchProgressProps) {
 
         {/* Completion */}
         {isFinished && status === 'completed' && (
-          <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center text-sm text-emerald-500">
-            🎉 All done! {completed} videos generated successfully.
+          <div className="space-y-3">
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center text-sm text-emerald-500">
+              🎉 All done! {completed} videos generated successfully.
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                const completedItems = queueItems.filter(i => i.status === 'completed' && i.videoUrl)
+                completedItems.forEach((item, idx) => {
+                  setTimeout(() => {
+                    const a = document.createElement('a')
+                    a.href = item.videoUrl!
+                    a.download = `${(item.character?.name ?? 'video').toLowerCase()}-${item.id.slice(-6)}.mp4`
+                    a.target = '_blank'
+                    a.rel = 'noopener noreferrer'
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                  }, idx * 500)
+                })
+              }}
+            >
+              ⬇️ Download All {completed} Videos
+            </Button>
           </div>
         )}
 

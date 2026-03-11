@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireApiAuth } from '@/lib/api-auth'
+import { uploadToImgBB } from '@/lib/imgbb'
+import path from 'path'
 
 // GET /api/presets — List all presets (optionally filter by characterId)
 export async function GET(request: NextRequest) {
@@ -46,10 +48,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Character not found: ${characterId}` }, { status: 404 })
     }
 
+    // Resolve relative paths (e.g. /characters/sofia.jpg) to absolute filesystem paths
+    let imgbbInput = imageUrl
+    if (imageUrl.startsWith('/') && !imageUrl.startsWith('//')) {
+      imgbbInput = path.join(process.cwd(), 'public', imageUrl)
+    }
+
+    let finalImageUrl = imageUrl
+    try {
+      finalImageUrl = await uploadToImgBB(imgbbInput)
+      console.log(`[IMGBB] Uploaded preset image: ${finalImageUrl}`)
+    } catch (e) {
+      console.warn(`[IMGBB] Upload failed, using original URL:`, e)
+    }
+
     const preset = await prisma.characterPreset.create({
       data: {
         name,
-        imageUrl,
+        imageUrl: finalImageUrl,
         characterId,
         generationParams: generationParams || null,
       },

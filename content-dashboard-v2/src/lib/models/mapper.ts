@@ -57,7 +57,8 @@ export function mapNanoBanana2Request(
 export function mapSeedanceRequest(
   prompt: string,
   config: SeedanceConfig,
-  referenceImageUrl?: string | null
+  referenceImageUrl?: string | null,
+  lastFrameImageUrl?: string | null
 ) {
   const promptParams = [
     prompt.trim(),
@@ -72,8 +73,14 @@ export function mapSeedanceRequest(
     { type: 'text', text: promptParams.join(' ').trim() },
   ]
 
+  // First frame (or single reference image)
   if (referenceImageUrl) {
     content.push({ type: 'image_url', image_url: { url: referenceImageUrl } })
+  }
+
+  // Last frame — only supported on non-fast models (1.5 Pro supports it)
+  if (lastFrameImageUrl && referenceImageUrl) {
+    content.push({ type: 'image_url', image_url: { url: lastFrameImageUrl } })
   }
 
   const body = {

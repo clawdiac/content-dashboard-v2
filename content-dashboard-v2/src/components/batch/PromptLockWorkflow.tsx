@@ -48,7 +48,7 @@ export function PromptLockWorkflow({ workflowId, onConfirmed }: PromptLockWorkfl
   }, [workflow?.basePrompt, prompt])
 
   const handleGeneratePreview = async () => {
-    const result = await generatePreviews(workflowId)
+    const result = await generatePreviews(workflowId, prompt)
     if (result) {
       setIterationCount((c) => c + 1)
       setIsEditing(false)
@@ -125,11 +125,11 @@ export function PromptLockWorkflow({ workflowId, onConfirmed }: PromptLockWorkfl
         {/* Preview display */}
         {preview && (
           <div className="rounded-lg border overflow-hidden">
-            <div className="relative aspect-video bg-muted/40">
+            <div className="relative bg-muted/40 flex items-center justify-center" style={{ minHeight: '200px' }}>
               {preview.videoUrl && preview.status === 'completed' ? (
                 <video
                   src={preview.videoUrl}
-                  className="h-full w-full object-cover"
+                  className="max-h-[500px] w-auto rounded"
                   muted
                   playsInline
                   loop

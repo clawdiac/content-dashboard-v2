@@ -4,6 +4,7 @@
 import { prisma } from '@/lib/prisma'
 import { generateImage } from '@/lib/generation'
 import { generateVideo } from '@/lib/video-generation'
+import { uploadToImgBB } from '@/lib/imgbb'
 import type { ModelConfig, SeedanceConfig, KlingConfig } from '@/lib/models'
 import { MODEL_DEFAULTS } from '@/lib/models'
 import path from 'path'
@@ -352,7 +353,21 @@ class GenerationQueue {
       }
 
       const isSeedance = item.modelConfig.model === 'seedance'
-      let result = await generateVideo(item.prompt, item.modelConfig as SeedanceConfig | KlingConfig, item.referenceImageUrl)
+
+      // Upload reference image to ImgBB if it's a localhost URL (ByteDance API requires public URLs)
+      let publicRefUrl = item.referenceImageUrl || null
+      if (publicRefUrl && (publicRefUrl.includes('localhost') || publicRefUrl.includes('127.0.0.1') || publicRefUrl.startsWith('/'))) {
+        try {
+          console.log(`[Queue] Uploading reference image to ImgBB for public URL...`)
+          publicRefUrl = await uploadToImgBB(publicRefUrl)
+          console.log(`[Queue] ImgBB upload success: ${publicRefUrl}`)
+        } catch (uploadErr) {
+          console.error(`[Queue] ImgBB upload failed, proceeding without reference image:`, uploadErr)
+          publicRefUrl = null
+        }
+      }
+
+      let result = await generateVideo(item.prompt, item.modelConfig as SeedanceConfig | KlingConfig, publicRefUrl)
 
       // Seedance→Kling fallback: if Seedance fails, retry with Kling
       if (isSeedance && !result.success) {
@@ -380,7 +395,7 @@ class GenerationQueue {
           advanced_camera_control: null,
         }
 
-        result = await generateVideo(item.prompt, klingConfig, item.referenceImageUrl)
+        result = await generateVideo(item.prompt, klingConfig, publicRefUrl)
 
         if (result.success) {
           console.log(`[Queue] Kling fallback succeeded for ${item.contentItemId}`)

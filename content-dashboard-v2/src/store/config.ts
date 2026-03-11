@@ -3,10 +3,21 @@ import { devtools, persist } from 'zustand/middleware'
 import { characterApi, presetApi } from '@/lib/api'
 import type { Character, ImagePreset, VideoPreset } from '@/types'
 
+export interface CharacterPresetWithCharacter {
+  id: string
+  name: string
+  imageUrl: string
+  characterId: string
+  character: { id: string; name: string }
+  generationParams: Record<string, unknown> | null
+  createdAt: string
+}
+
 interface ConfigState {
   characters: Character[]
   imagePresets: ImagePreset[]
   videoPresets: VideoPreset[]
+  characterPresets: CharacterPresetWithCharacter[]
   comfyuiEndpoint: string
   loading: boolean
   error: string | null
@@ -24,6 +35,7 @@ export const useConfigStore = create<ConfigState>()(
         characters: [],
         imagePresets: [],
         videoPresets: [],
+        characterPresets: [],
         comfyuiEndpoint: '',
         loading: false,
         error: null,
@@ -41,13 +53,15 @@ export const useConfigStore = create<ConfigState>()(
         fetchPresets: async () => {
           set({ loading: true, error: null })
           try {
-            const [imgData, vidData] = await Promise.all([
+            const [imgData, vidData, charPresetData] = await Promise.all([
               presetApi.listImage(),
               presetApi.listVideo(),
+              fetch('/api/presets').then((r) => r.json()),
             ])
             set({
               imagePresets: imgData.presets ?? (imgData as unknown as ImagePreset[]) ?? [],
               videoPresets: vidData.presets ?? (vidData as unknown as VideoPreset[]) ?? [],
+              characterPresets: Array.isArray(charPresetData) ? charPresetData : [],
               loading: false,
             })
           } catch (e) {

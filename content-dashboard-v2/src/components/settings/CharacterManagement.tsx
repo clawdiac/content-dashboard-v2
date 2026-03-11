@@ -81,7 +81,7 @@ export function CharacterManagement() {
   const startEdit = (char: Character) => {
     setEditing(char.id)
     setCreating(false)
-    setForm({ name: char.name, displayName: char.displayName, avatarUrl: char.avatarUrl ?? "", loraPath: char.loraPath ?? "", triggerWord: char.triggerWord ?? "", defaultPromptSuffix: char.defaultPromptSuffix ?? "" })
+    setForm({ name: char.name ?? '', displayName: char.displayName ?? '', avatarUrl: char.avatarUrl ?? "", loraPath: char.loraPath ?? "", triggerWord: char.triggerWord ?? "", defaultPromptSuffix: char.defaultPromptSuffix ?? "" })
     setError(null)
   }
 
@@ -130,10 +130,10 @@ export function CharacterManagement() {
         {characters.map(char => (
           <Card key={char.id} className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-              {char.avatarUrl ? <img src={char.avatarUrl} alt={char.displayName} className="h-10 w-10 rounded-full object-cover" /> : char.displayName[0]?.toUpperCase()}
+              {char.avatarUrl ? <img src={char.avatarUrl} alt={char.displayName ?? ''} className="h-10 w-10 rounded-full object-cover" /> : (char.displayName?.[0]?.toUpperCase() ?? '?')}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-medium truncate">{char.displayName}</div>
+              <div className="font-medium truncate">{char.displayName ?? char.name ?? 'Unnamed'}</div>
               <div className="text-xs text-muted-foreground truncate">{char.name}{char.triggerWord ? ` · ${char.triggerWord}` : ""}</div>
             </div>
             <Badge variant="secondary" className="text-xs">{presetCount(char.id)} presets</Badge>
@@ -145,8 +145,8 @@ export function CharacterManagement() {
               </div>
             ) : (
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => startEdit(char)} aria-label={`Edit ${char.displayName}`}><Pencil className="h-4 w-4" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleting(char.id)} aria-label={`Delete ${char.displayName}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => startEdit(char)} aria-label={`Edit ${char.displayName ?? char.name ?? 'character'}`}><Pencil className="h-4 w-4" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => setDeleting(char.id)} aria-label={`Delete ${char.displayName ?? char.name ?? 'character'}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             )}
           </Card>
