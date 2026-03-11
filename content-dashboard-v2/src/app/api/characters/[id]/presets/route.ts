@@ -8,10 +8,22 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error: authError } = await requireApiAuth('admin')
+  const { error: authError, session } = await requireApiAuth()
   if (authError) return authError
 
   const { id } = await params
+
+  const character = await prisma.character.findUnique({ where: { id } })
+  if (!character) {
+    return NextResponse.json({ error: 'Character not found' }, { status: 404 })
+  }
+  const isAdmin = session!.user.role === 'admin'
+  const isOwnerOrShared =
+    character.userId === session!.user.id || character.userId === null
+  if (!isAdmin && !isOwnerOrShared) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const body = await request.json()
   const { name, imageUrl, generationParams } = body
 

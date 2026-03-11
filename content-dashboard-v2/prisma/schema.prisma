@@ -21,6 +21,7 @@ model User {
   accounts     Account[]
   sessions     Session[]
   contentItems ContentItem[]
+  characters   Character[]
 }
 
 model Account {
@@ -108,14 +109,27 @@ model Character {
   id                      String                   @id @default(cuid())
   name                    String
   description             String?
+  userId                  String?
+  user                    User?                    @relation(fields: [userId], references: [id])
+  avatarUrl               String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   presets                 CharacterPreset[]
   videoPresets            VideoPreset[]
   contentItems            ContentItem[]
+  tags                    Tag[]
   batchPreviews           BatchWorkflowPreview[]
   batchQueueItems         BatchWorkflowQueueItem[]
   batchWorkflowsAsPreview BatchWorkflow[]          @relation("BWPreviewCharacter")
+
+  @@index([userId])
+}
+
+model Tag {
+  id        String      @id @default(cuid())
+  name      String      @unique
+  createdAt DateTime    @default(now())
+  characters Character[]
 }
 
 model CharacterPreset {
