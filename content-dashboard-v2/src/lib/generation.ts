@@ -16,19 +16,30 @@ interface GenerationResult {
 
 /**
  * Fetch a reference image URL and return base64 data.
+ * For relative paths (starting with /), reads directly from disk to avoid self-fetch port issues.
  */
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
-    // Convert relative paths to absolute URLs for server-side fetch
-    let fetchUrl = url
     if (url.startsWith('/')) {
-      // HARDCODED FIX: Use localhost:3000 directly for reference image fetching
-      const baseUrl = 'http://localhost:3000'
-      fetchUrl = `${baseUrl}${url}`
-      console.log('[Generation] Using localhost:3000 to fetch reference image')
+      // Read directly from public/ on disk
+      const { readFile } = await import('fs/promises')
+      const path = await import('path')
+      const filePath = path.join(process.cwd(), 'public', url)
+      console.log('[Generation] Reading reference image from disk:', filePath)
+      const buffer = await readFile(filePath)
+      const ext = path.extname(url).toLowerCase()
+      const mimeMap: Record<string, string> = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.png': 'image/png', '.webp': 'image/webp',
+        '.gif': 'image/gif',
+      }
+      const mimeType = mimeMap[ext] || 'image/png'
+      console.log('[Generation] Reference image loaded from disk, size:', buffer.byteLength, 'bytes, mime:', mimeType)
+      return { data: buffer.toString('base64'), mimeType }
     }
-    console.log('[Generation] Fetching reference image from:', fetchUrl)
-    const response = await fetch(fetchUrl)
+
+    console.log('[Generation] Fetching reference image from:', url)
+    const response = await fetch(url)
     if (!response.ok) {
       console.error('[Generation] Failed to fetch reference image:', response.status, response.statusText)
       return null

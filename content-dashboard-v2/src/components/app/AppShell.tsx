@@ -22,11 +22,13 @@ import {
   WifiOff,
   GalleryHorizontalEnd,
   Users,
+  Wand2,
 } from "lucide-react"
 
 const adminNav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/characters", label: "Characters", icon: Users },
+  { href: "/creator", label: "Creator", icon: Wand2 },
   { href: "/generate", label: "Generate", icon: Sparkles },
   { href: "/approve", label: "Approve", icon: CheckSquare },
   { href: "/video", label: "Video", icon: Clapperboard },

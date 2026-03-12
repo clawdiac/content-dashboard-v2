@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, User, Loader2, X } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, User, Loader2, X, Sparkles } from 'lucide-react'
 
 interface Tag {
   id: string
@@ -136,10 +137,18 @@ export default function CharactersPage() {
             Manage character presets, tags, and avatars.
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Character
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/creator">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Generate Characters
+            </Link>
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Character
+          </Button>
+        </div>
       </div>
 
       {/* Tag filter */}
